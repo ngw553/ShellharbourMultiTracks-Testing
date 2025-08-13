@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Church Multitrack Player</title>
+<title>Shellharbour City Anglican Multitrack Player</title>
 <style>
   :root {
     --bg:#0f1115; --panel:#151821; --panel2:#1b2030; --text:#e7e9ee; --muted:#9aa3b2;
@@ -61,8 +61,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Church Multitrack Player</h1>
-  <p class="lead">Click a song to load its stems. Use <b>Solo/Mute</b> and per-track <b>Volume</b>. Space = Play/Pause.</p>
+  <h1>Shellharbour City Anglican Multitrack Player</h1>
+  <p class="lead">Click a song to load. If you click multiple times quickly, the player may try to load the tracks multiple times. Please allow time to load. Use <b>Solo/Mute</b> and per-track <b>Volume</b>. Space = Play/Pause.</p>
 
   <!-- SONG BUTTONS -->
   <div class="songs" id="songButtons"></div>
@@ -97,7 +97,7 @@
   <!-- TRACKS LIST -->
   <div id="tracks" class="tracks panel"></div>
 
-  <p class="lead" style="margin-top:18px">Pro tip: export stems from Cubase from the same start (bar 1) and same sample rate for perfect sync.</p>
+  <p class="lead" style="margin-top:18px">If you have any questions or concerns, please contact Nick Wilson.</p>
 </div>
 
 <script>
@@ -117,6 +117,7 @@ const SONGS = {
       { file: "Piano.mp3", name: "Piano" },
       { file: "Violin.mp3",   name: "Violin" },
       { file: "Vocal.mp3", name: "Vocal" },
+      // { file: "Electric Guitar.mp3", name: "Electric Guitar" },
       // { file: "BVs.wav",    name: "BVs" },
       // { file: "Click.wav",  name: "Click" },
     ]
@@ -124,10 +125,29 @@ const SONGS = {
   "Another Song": {
     folder: "AnotherSong",
     stems: [
-      { file: "Drums.wav",  name: "Drums" },
-      { file: "Bass.wav",   name: "Bass" },
-      { file: "Guitar.wav", name: "Guitar" },
-      { file: "Vox.wav",    name: "Vocals" },
+      { file: "Drums.mp3",  name: "Drums" },
+      { file: "Bass.mp3",   name: "Bass" },
+      { file: "Guitar.mp3", name: "Acoustic Gtr" },
+      { file: "Piano.mp3", name: "Piano" },
+      { file: "Violin.mp3",   name: "Violin" },
+      { file: "Vocal.mp3", name: "Vocal" },
+      // { file: "Electric Guitar.mp3", name: "Electric Guitar" },
+      // { file: "BVs.wav",    name: "BVs" },
+      // { file: "Click.wav",  name: "Click" },
+    ]
+  }
+  "Jesus": {
+    folder: "Jesus",
+    stems: [
+      { file: "Drums.mp3",  name: "Drums" },
+      { file: "Bass.mp3",   name: "Bass" },
+      { file: "Guitar.mp3", name: "Acoustic Gtr" },
+      { file: "Piano.mp3", name: "Piano" },
+      { file: "Violin.mp3",   name: "Violin" },
+      { file: "Vocal.mp3", name: "Vocal" },
+      // { file: "Electric Guitar.mp3", name: "Electric Guitar" },
+      // { file: "BVs.wav",    name: "BVs" },
+      // { file: "Click.wav",  name: "Click" },
     ]
   }
 };
