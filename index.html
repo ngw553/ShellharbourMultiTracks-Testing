@@ -43,7 +43,7 @@
   }
   .tracks { display:flex; flex-direction:column; gap:10px; }
 
-  /* Track row now has a second row for the waveform */
+  /* Track row + waveform row */
   .track {
     display:grid;
     grid-template-columns: 220px 1fr auto;
@@ -65,7 +65,7 @@
   small.hint { color:var(--muted); }
   .hidden { display:none; }
 
-  /* Waveform container spans the full width of the track row */
+  /* Waveform container spans full width */
   .t-wave {
     grid-column: 1 / -1;
     height: 64px;
@@ -75,7 +75,7 @@
     overflow: hidden;
   }
 
-  /* Simple vertical VU meter */
+  /* Vertical VU meter */
   .vu {
     width: 10px;
     height: 36px;
@@ -87,15 +87,14 @@
   }
   .vu-fill {
     position: absolute;
-    bottom: 0;
-    left: 0;
+    bottom: 0; left: 0;
     width: 100%;
     height: 0%;
     background: linear-gradient(180deg, var(--ok), #88e08f);
     transition: height .06s linear;
   }
 
-  /* Mobile tweaks */
+  /* Mobile */
   @media (max-width: 780px) {
     .track { grid-template-columns: 1fr; gap:8px; }
     .t-slider input[type="range"]{ width:100%; }
@@ -145,17 +144,16 @@
   <div id="tracks" class="tracks panel"></div>
 
   <p class="lead" style="margin-top:18px">If you have any questions or concerns, please contact N.</p>
-  <p class="lead" style="margin-top:15px">V2.1</p>
+  <p class="lead" style="margin-top:15px">V2.2</p>
 </div>
 
-<!-- Wavesurfer for visual-only waveforms -->
-<script src="https://unpkg.com/wavesurfer.js"></script>
+<!-- Pin WaveSurfer to v6 (UMD) so API is stable -->
+<script src="https://unpkg.com/wavesurfer.js@6/dist/wavesurfer.min.js"></script>
 
 <script>
 /* ─────────────────────────────────────────────────────────────────────────────
    CONFIG
    ───────────────────────────────────────────────────────────────────────────── */
-
 const SONGS = {
   "Hail The King": {
     folder: "HailTheKing",
@@ -163,9 +161,9 @@ const SONGS = {
       { file: "Drums.mp3",  name: "Drums" },
       { file: "Bass.mp3",   name: "Bass" },
       { file: "Guitar.mp3", name: "Acoustic Guitar" },
-      { file: "Piano.mp3", name: "Piano" },
-      { file: "Violin.mp3",   name: "Violin" },
-      { file: "Vocal.mp3", name: "Vocal" },
+      { file: "Piano.mp3",  name: "Piano" },
+      { file: "Violin.mp3", name: "Violin" },
+      { file: "Vocal.mp3",  name: "Vocal" },
       { file: "Electric Guitar.mp3", name: "Electric Guitar" },
       { file: "Click.mp3",  name: "Click", muted: true }
     ]
@@ -175,18 +173,17 @@ const SONGS = {
 /* ─────────────────────────────────────────────────────────────────────────────
    AUDIO ENGINE
    ───────────────────────────────────────────────────────────────────────────── */
-
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioCtx = new AudioContext();
 
-let tracks = []; // { name, buffer, gainNode, analyser, td, meterEl, ws, volume, mute, solo, _source }
+let tracks = []; // { name, buffer, gainNode, analyser, _td, _meterFill, ws, volume, mute, solo, _source }
 let masterGain = audioCtx.createGain();
 masterGain.gain.value = 1;
 masterGain.connect(audioCtx.destination);
 
 let isPlaying = false;
-let playStartedAt = 0;       // audioCtx time when play started (aligns with pos 0)
-let pausedAt = 0;            // current position in seconds when paused
+let playStartedAt = 0;
+let pausedAt = 0;
 let duration = 0;
 let raf = null;
 let currentSongKey = null;
@@ -214,7 +211,6 @@ for (const key of Object.keys(SONGS)) {
 }
 
 el.masterVol.addEventListener('input', ()=> masterGain.gain.value = parseFloat(el.masterVol.value));
-
 el.playBtn.addEventListener('click', ()=> { if (tracks.length) startPlayback(); });
 el.pauseBtn.addEventListener('click', ()=> pausePlayback());
 el.stopBtn.addEventListener('click', ()=> stopPlayback());
@@ -226,7 +222,7 @@ el.seek.addEventListener('input', (e)=>{
     createSources(pausedAt);
   } else {
     updateTimeDisplay();
-    updateVisuals(pausedAt); // keep waveforms & meters in sync while scrubbing paused
+    updateVisuals(pausedAt);
   }
 });
 
@@ -235,7 +231,7 @@ window.addEventListener('keydown', e=>{
   if (e.code === 'KeyS' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); stopPlayback(); }
 });
 
-// Core helpers
+// Helpers
 function formatTime(s){
   if (!isFinite(s) || s<=0) return '00:00';
   const m = Math.floor(s/60);
@@ -251,7 +247,6 @@ function startRaf(){
     updateTimeDisplay();
     updateVisuals(pos);
 
-    // loop handling
     if (isPlaying && el.loopToggle.checked && pos >= duration) {
       createSources(0);
     }
@@ -265,33 +260,27 @@ function updateTimeDisplay(){
   el.timeDisplay.textContent = `${formatTime(pos)} / ${formatTime(duration)}`;
 }
 
-/* Update waveforms (seek playhead) and meters (RMS) */
+/* Waveforms + meters */
 function updateVisuals(pos){
-  // Waveforms
+  // Waveforms: keep in sync with playhead
   tracks.forEach(t => {
     if (!t.ws || !t.buffer || !isFinite(pos)) return;
     const dur = t.buffer.duration || duration || 1;
     const ratio = Math.max(0, Math.min(1, pos / dur));
-    // Prefer setTime if available (smoother), otherwise fall back to seekTo
-    if (typeof t.ws.setTime === 'function') {
-      t.ws.setTime(pos);
-    } else {
-      t.ws.seekTo(ratio);
-    }
+    // WaveSurfer v6 uses seekTo(0..1)
+    try { t.ws.seekTo(ratio); } catch(e){}
   });
 
-  // Meters (post-gain, so reflects mute/solo/volume)
+  // Meters: post-gain RMS
   tracks.forEach(t => {
     if (!t.analyser || !t._td || !t._meterFill) return;
-    t.analyser.getByteTimeDomainData(t._td); // values around 128
-    // Compute RMS
+    t.analyser.getByteTimeDomainData(t._td); // 0..255 centered ~128
     let sumSq = 0;
     for (let i = 0; i < t._td.length; i++) {
-      const v = (t._td[i] - 128) / 128; // -1..1
+      const v = (t._td[i] - 128) / 128;
       sumSq += v * v;
     }
-    const rms = Math.sqrt(sumSq / t._td.length); // 0..~1
-    // Simple smoothing for visual stability
+    const rms = Math.sqrt(sumSq / t._td.length); // ~0..1
     t._meterSmooth = t._meterSmooth === undefined ? rms : (t._meterSmooth * 0.8 + rms * 0.2);
     const pct = Math.max(0, Math.min(1, t._meterSmooth)) * 100;
     t._meterFill.style.height = pct + "%";
@@ -307,16 +296,13 @@ function stopSources(){
     }
   });
   isPlaying = false;
-  // keep RAF running to allow paused scrubbing visuals? we'll stop and restart on demand
   stopRaf();
 }
 
 function createSources(atOffset=0){
-  // Stop any currently playing sources
   stopSources();
-  const when = audioCtx.currentTime + 0.03; // small schedule latency
+  const when = audioCtx.currentTime + 0.03;
   tracks.forEach(t=>{
-    // If this track has no buffer or offset beyond duration, skip
     if (!t.buffer || atOffset >= t.buffer.duration) { t._source = null; return; }
     const src = audioCtx.createBufferSource();
     src.buffer = t.buffer;
@@ -341,7 +327,6 @@ function pausePlayback(){
   const now = audioCtx.currentTime;
   pausedAt = now - playStartedAt;
   stopSources();
-  // keep visuals on the paused position
   updateVisuals(pausedAt);
 }
 function stopPlayback(){
@@ -355,10 +340,9 @@ function stopPlayback(){
 /* ─────────────────────────────────────────────────────────────────────────────
    TRACK UI
    ───────────────────────────────────────────────────────────────────────────── */
-
 function renderTracks(){
   el.tracks.innerHTML = '';
-  tracks.forEach((t, idx) => {
+  tracks.forEach((t) => {
     const row = document.createElement('div');
     row.className = 'track';
 
@@ -412,7 +396,7 @@ function renderTracks(){
 
     volWrap.append(volLabel, vol, volVal, vu);
 
-    // Waveform container (full-width row)
+    // Waveform container
     const waveWrap = document.createElement('div');
     waveWrap.className = 't-wave';
 
@@ -421,34 +405,35 @@ function renderTracks(){
 
     // Save elements
     t._el = { row, btnSolo, btnMute, vol, waveWrap, vuFill };
+    t._meterFill = vuFill;
 
-    // Create WaveSurfer for this track's waveform visualization (visual-only)
-    if (window.WaveSurfer && t.buffer) {
-      const ws = WaveSurfer.create({
-        container: waveWrap,
-        waveColor: '#4e74ff',
-        progressColor: '#9caeff',
-        cursorColor: '#ffffff',
-        cursorWidth: 1,
-        height: waveWrap.clientHeight || 64,
-        interact: false,          // visuals only
-        normalize: true,
-        backend: 'WebAudio',
-        minPxPerSec: 80,          // enable scrolling on long files
-        autoScroll: true,
-        autoCenter: true,
-      });
-      // Load already-decoded buffer (no extra network request)
-      ws.loadDecodedBuffer(t.buffer);
-      t.ws = ws;
+    // Create WaveSurfer for visual-only waveform
+    try {
+      if (window.WaveSurfer) {
+        const ws = WaveSurfer.create({
+          container: waveWrap,
+          waveColor: '#4e74ff',
+          progressColor: '#9caeff',
+          cursorColor: '#ffffff',
+          cursorWidth: 1,
+          height: 64,
+          interact: false,
+          normalize: true,
+          minPxPerSec: 80,   // enables auto-scroll
+          autoScroll: true,
+          autoCenter: true,
+        });
+        // Load via URL (stable across versions)
+        ws.load(t._url);
+        t.ws = ws;
+      }
+    } catch (e) {
+      console.error('WaveSurfer error on', t.name, e);
     }
 
     // reflect initial state
     btnSolo.classList.toggle('active', t.solo);
     btnMute.classList.toggle('active', t.mute);
-
-    // attach meter fill element
-    t._meterFill = vuFill;
   });
 }
 
@@ -468,7 +453,6 @@ function updateGains(){
 /* ─────────────────────────────────────────────────────────────────────────────
    SONG LOADING
    ───────────────────────────────────────────────────────────────────────────── */
-
 async function fetchArrayBuffer(url){
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Fetch failed: ${url}`);
@@ -481,14 +465,12 @@ async function decodeAudio(arrBuf){
 }
 
 async function loadSong(songKey, buttonEl){
-  // Destroy any existing waveforms to prevent leaks
+  // Destroy any existing waveforms
   tracks.forEach(t => { try { t.ws && t.ws.destroy && t.ws.destroy(); } catch(e){} });
 
-  // UI: mark active button
   document.querySelectorAll('.song-btn').forEach(b => b.classList.remove('active'));
   if (buttonEl) buttonEl.classList.add('active');
 
-  // Stop previous playback & clear existing
   stopPlayback();
   stopSources();
   tracks = [];
@@ -498,18 +480,18 @@ async function loadSong(songKey, buttonEl){
   const cfg = SONGS[songKey];
   if (!cfg) return;
 
-  const folder = cfg.folder.replace(/\/+$/,''); // trim trailing slash
+  const folder = cfg.folder.replace(/\/+$/,'');
   let maxDur = 0;
 
-  // Load sequentially (simpler error surfacing); could be parallel with Promise.all
   for (const stem of cfg.stems) {
-    const url = `${folder}/${stem.file}`;
+    // Encode filenames with spaces/special chars for GitHub Pages
+    const url = `${folder}/${encodeURIComponent(stem.file)}`;
     try {
       const arr = await fetchArrayBuffer(url);
       const buffer = await decodeAudio(arr);
 
       const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 512;
+      analyser.fftSize = 1024; // time-domain length
       analyser.smoothingTimeConstant = 0.6;
 
       const gainNode = audioCtx.createGain();
@@ -522,10 +504,11 @@ async function loadSong(songKey, buttonEl){
       const track = {
         name: stem.name || stem.file,
         file: stem.file,
+        _url: url,               // for WaveSurfer.load
         buffer,
         gainNode,
         analyser,
-        _td: new Uint8Array(analyser.fftSize), // time-domain data for RMS
+        _td: new Uint8Array(analyser.fftSize),
         _meterFill: null,
         ws: null,
         volume: 1,
@@ -534,16 +517,17 @@ async function loadSong(songKey, buttonEl){
         _source: null
       };
 
-      // Apply initial mute state to gain
+      // Initial mute state
       gainNode.gain.value = track.mute ? 0 : 1;
 
       tracks.push(track);
       maxDur = Math.max(maxDur, buffer.duration);
     } catch (err) {
       console.error('Error loading stem:', url, err);
-      // Insert a disabled track entry so the band sees it's missing
       tracks.push({
         name: (stem.name || stem.file) + ' (missing)',
+        file: stem.file,
+        _url: url,
         buffer: null,
         gainNode: null,
         analyser: null,
@@ -561,16 +545,18 @@ async function loadSong(songKey, buttonEl){
   duration = maxDur || 0;
   el.seek.max = duration || 1;
   pausedAt = 0;
+
   renderTracks();
   updateGains();
   updateTimeDisplay();
   updateVisuals(0);
+
   el.loadHint.textContent = `Loaded "${songKey}".`;
   currentSongKey = songKey;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   OPTIONAL: Auto-load the first song on page open
+   Auto-load first song
    ───────────────────────────────────────────────────────────────────────────── */
 window.addEventListener('load', ()=>{
   const firstKey = Object.keys(SONGS)[0];
