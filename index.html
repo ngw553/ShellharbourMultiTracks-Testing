@@ -1,462 +1,239 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Shellharbour City Anglican Multitrack Player</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Church Band Multitrack Player</title>
 <style>
-  :root {
-    --bg:#0f1115; --panel:#151821; --panel2:#1b2030; --text:#e7e9ee; --muted:#9aa3b2;
-    --accent:#74c0fc; --accent2:#a78bfa; --danger:#ff6b6b; --ok:#51cf66; --border:#23283a;
-  }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-  .wrap { max-width:1100px; margin:0 auto; padding:24px 16px 40px; }
-  h1 { margin:0 0 8px; font-size:28px; font-weight:700; letter-spacing:.2px; }
-  p.lead { margin:0 0 18px; color:var(--muted); }
-  .songs { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 18px; }
-  .song-btn {
-    border:1px solid var(--border); background:linear-gradient(180deg,var(--panel),var(--panel2));
-    color:var(--text); padding:10px 14px; border-radius:12px; cursor:pointer; transition:transform .06s ease, border-color .2s ease;
-  }
-  .song-btn:hover { transform: translateY(-1px); border-color:#2c3350; }
-  .song-btn.active { outline:2px solid var(--accent); border-color:transparent; }
-  .toolbar {
-    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-    background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:12px;
-  }
-  .toolbar .group { display:flex; gap:8px; align-items:center; }
-  .btn {
-    background:var(--panel2); border:1px solid var(--border); color:var(--text);
-    padding:8px 10px; border-radius:10px; cursor:pointer; min-width:44px; text-align:center;
-  }
-  .btn:hover { border-color:#313852; }
-  .btn.primary { background:linear-gradient(180deg,#24314a,#1d2740); border-color:#2a3551; }
-  .btn.danger { background:linear-gradient(180deg,#3a1f27,#301a22); border-color:#4b1e26; color:#ffd7dc; }
-  .toggle { display:flex; align-items:center; gap:8px; }
-  .time { margin-left:auto; font-variant-numeric: tabular-nums; color:#c6cee0 }
-  .seek { appearance:none; width:100%; height:8px; border-radius:999px; background:#22283b; outline:none; }
-  .seek::-webkit-slider-thumb{ appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid #0b0f1c; }
-  .seek::-moz-range-thumb{ width:16px; height:16px; border:0; border-radius:50%; background:var(--accent); cursor:pointer; }
-  .panel {
-    background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:12px; margin-top:14px;
-  }
-  .tracks { display:flex; flex-direction:column; gap:8px; }
-  .track {
-    display:grid; grid-template-columns: 220px 1fr auto; gap:12px; align-items:center;
-    background:linear-gradient(180deg,var(--panel),#121724); border:1px solid var(--border); border-radius:12px; padding:10px;
-  }
-  .t-name { font-weight:600; color:#e9ecf5; }
-  .t-controls { display:flex; gap:10px; align-items:center; }
-  .t-controls .pill {
-    background:var(--panel2); border:1px solid var(--border); border-radius:999px; padding:6px 10px; color:#e8ebf6; min-width:42px; text-align:center; cursor:pointer;
-  }
-  .t-controls .pill.active { outline:2px solid var(--accent2); }
-  .t-slider { display:flex; align-items:center; gap:8px; color:#c8d0e2 }
-  .t-slider input[type="range"]{ width:180px; }
-  .master { display:flex; gap:12px; align-items:center; color:#c8d0e2 }
-  small.hint { color:var(--muted); }
-  .hidden { display:none; }
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0; padding: 0;
+        background: #f4f4f4;
+    }
+    header {
+        background: #222;
+        color: #fff;
+        padding: 10px;
+        text-align: center;
+    }
+    .track {
+        background: white;
+        padding: 10px;
+        margin: 10px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .controls {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        margin-top: 5px;
+    }
+    .controls label {
+        font-size: 0.9em;
+    }
+    .slider {
+        flex: 1;
+        min-width: 80px;
+    }
+    .meter {
+        width: 8px;
+        height: 30px;
+        background: #ddd;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+    }
+    .meter-fill {
+        background: #4caf50;
+        width: 100%;
+        height: 0%;
+        position: absolute;
+        bottom: 0;
+        transition: height 0.05s linear;
+    }
+    .waveform {
+        width: 100%;
+        height: 80px;
+    }
+    button {
+        padding: 6px 12px;
+        font-size: 0.9em;
+    }
+    @media (max-width: 600px) {
+        .controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Shellharbour City Anglican Multitrack Player</h1>
-  <p class="lead">Click a song to load. If you click multiple times quickly, the player may try to load the tracks multiple times. Please allow time to load. Use <b>Solo/Mute</b> and per-track <b>Volume</b>. Space = Play/Pause.</p>
+<header>
+    <h1>Church Band Multitrack Player</h1>
+</header>
+<main id="trackContainer"></main>
 
-  <!-- SONG BUTTONS -->
-  <div class="songs" id="songButtons"></div>
-
-  <!-- TRANSPORT / MASTER -->
-  <div class="toolbar panel">
-    <div class="group">
-      <button id="playBtn" class="btn primary" title="Play (Space)">▶</button>
-      <button id="pauseBtn" class="btn" title="Pause (Space)">⏸</button>
-      <button id="stopBtn" class="btn" title="Stop (Ctrl+S)">⏹</button>
-    </div>
-    <div class="group master">
-      <span>Master</span>
-      <input id="masterVol" type="range" min="0" max="1" step="0.01" value="1" />
-    </div>
-    <label class="toggle group" title="Loop">
-      <input id="loopToggle" type="checkbox" />
-      <span>Loop</span>
-    </label>
-    <div class="time" id="timeDisplay">00:00 / 00:00</div>
-  </div>
-
-  <!-- SEEK BAR -->
-  <div class="panel">
-    <input id="seek" class="seek" type="range" min="0" max="1" step="0.001" value="0" />
-    <div class="group" style="justify-content:space-between; margin-top:6px">
-      <small class="hint">Drag to scrub</small>
-      <small class="hint" id="loadHint">Load a song to begin</small>
-    </div>
-  </div>
-
-  <!-- TRACKS LIST -->
-  <div id="tracks" class="tracks panel"></div>
-
-  <p class="lead" style="margin-top:18px">If you have any questions or concerns, please contact Nick Wilson.</p>
-</div>
-
+<script src="https://unpkg.com/wavesurfer.js"></script>
 <script>
-/* ─────────────────────────────────────────────────────────────────────────────
-   CONFIG: Define your songs and stems here. Each song points to a folder
-   (relative to this index.html on GitHub Pages) that contains the audio files.
-   Add/remove songs & stems as needed.
-   ───────────────────────────────────────────────────────────────────────────── */
-
-const SONGS = {
+/* --- SONG/STEM DATA --- */
+const songs = {
   "Hail The King": {
     folder: "HailTheKing",
     stems: [
       { file: "Drums.mp3",  name: "Drums" },
       { file: "Bass.mp3",   name: "Bass" },
-      { file: "Guitar.mp3", name: "Acoustic Gtr" },
+      { file: "Guitar.mp3", name: "Acoustic Guitar" },
       { file: "Piano.mp3", name: "Piano" },
       { file: "Violin.mp3",   name: "Violin" },
       { file: "Vocal.mp3", name: "Vocal" },
-      // { file: "Electric Guitar.mp3", name: "Electric Guitar" },
-      // { file: "BVs.wav",    name: "BVs" },
-      // { file: "Click.wav",  name: "Click" },
+      { file: "Electric Guitar.mp3", name: "Electric Guitar" },
+      // { file: "BackingVocal.mp3",    name: "Backing Vocal" },
+      { file: "Click.mp3",  name: "Click", muted: true }
     ]
-  },
-  "Another Song": {
-    folder: "AnotherSong",
-    stems: [
-      { file: "Drums.mp3",  name: "Drums" },
-      { file: "Bass.mp3",   name: "Bass" },
-      { file: "Guitar.mp3", name: "Acoustic Gtr" },
-      { file: "Piano.mp3", name: "Piano" },
-      { file: "Violin.mp3",   name: "Violin" },
-      { file: "Vocal.mp3", name: "Vocal" },
-      // { file: "Electric Guitar.mp3", name: "Electric Guitar" },
-      // { file: "BVs.wav",    name: "BVs" },
-      // { file: "Click.wav",  name: "Click" },
-    ]
-  },
-  "Jesus": {
-    folder: "Jesus",
-    stems: [
-      { file: "Drums.mp3",  name: "Drums" },
-      { file: "Bass.mp3",   name: "Bass" },
-      { file: "Guitar.mp3", name: "Acoustic Gtr" },
-      { file: "Piano.mp3", name: "Piano" },
-      { file: "Violin.mp3",   name: "Violin" },
-      { file: "Vocal.mp3", name: "Vocal" },
-      // { file: "Electric Guitar.mp3", name: "Electric Guitar" },
-      // { file: "BVs.wav",    name: "BVs" },
-      // { file: "Click.wav",  name: "Click" },
-    ]
-  }
 };
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   AUDIO ENGINE
-   ───────────────────────────────────────────────────────────────────────────── */
+// Current song
+const currentSong = songs["Hail The King"];
 
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-const audioCtx = new AudioContext();
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let playing = false;
+let trackData = [];
 
-let tracks = []; // populated after loading a song
-let masterGain = audioCtx.createGain();
-masterGain.gain.value = 1;
-masterGain.connect(audioCtx.destination);
+function createTrackElement(trackInfo) {
+    const container = document.createElement("div");
+    container.className = "track";
 
-let isPlaying = false;
-let playStartedAt = 0;       // audioCtx time when play started (aligns with pos 0)
-let pausedAt = 0;            // current position in seconds when paused
-let duration = 0;
-let raf = null;
-let currentSongKey = null;
+    const title = document.createElement("h3");
+    title.textContent = trackInfo.name;
+    container.appendChild(title);
 
-const el = {
-  songButtons: document.getElementById('songButtons'),
-  tracks: document.getElementById('tracks'),
-  playBtn: document.getElementById('playBtn'),
-  pauseBtn: document.getElementById('pauseBtn'),
-  stopBtn: document.getElementById('stopBtn'),
-  masterVol: document.getElementById('masterVol'),
-  loopToggle: document.getElementById('loopToggle'),
-  seek: document.getElementById('seek'),
-  timeDisplay: document.getElementById('timeDisplay'),
-  loadHint: document.getElementById('loadHint'),
-};
+    const waveformDiv = document.createElement("div");
+    waveformDiv.className = "waveform";
+    container.appendChild(waveformDiv);
 
-// Build song buttons
-for (const key of Object.keys(SONGS)) {
-  const b = document.createElement('button');
-  b.className = 'song-btn';
-  b.textContent = key;
-  b.addEventListener('click', () => loadSong(key, b));
-  el.songButtons.appendChild(b);
-}
+    const controls = document.createElement("div");
+    controls.className = "controls";
 
-el.masterVol.addEventListener('input', ()=> masterGain.gain.value = parseFloat(el.masterVol.value));
+    const muteBtn = document.createElement("button");
+    muteBtn.textContent = "Mute";
+    controls.appendChild(muteBtn);
 
-el.playBtn.addEventListener('click', ()=> { if (tracks.length) startPlayback(); });
-el.pauseBtn.addEventListener('click', ()=> pausePlayback());
-el.stopBtn.addEventListener('click', ()=> stopPlayback());
+    const soloBtn = document.createElement("button");
+    soloBtn.textContent = "Solo";
+    controls.appendChild(soloBtn);
 
-el.seek.addEventListener('input', (e)=>{
-  const val = parseFloat(e.target.value);
-  pausedAt = val;
-  if (isPlaying) {
-    createSources(pausedAt);
-  } else {
-    updateTimeDisplay();
-  }
-});
+    const volSlider = document.createElement("input");
+    volSlider.type = "range";
+    volSlider.min = 0; volSlider.max = 1; volSlider.step = 0.01;
+    volSlider.value = 1;
+    volSlider.className = "slider";
+    controls.appendChild(volSlider);
 
-window.addEventListener('keydown', e=>{
-  if (e.code === 'Space') { e.preventDefault(); if (isPlaying) pausePlayback(); else startPlayback(); }
-  if (e.code === 'KeyS' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); stopPlayback(); }
-});
+    const meter = document.createElement("div");
+    meter.className = "meter";
+    const meterFill = document.createElement("div");
+    meterFill.className = "meter-fill";
+    meter.appendChild(meterFill);
+    controls.appendChild(meter);
 
-// Core helpers
-function formatTime(s){
-  if (!isFinite(s) || s<=0) return '00:00';
-  const m = Math.floor(s/60);
-  const ss = Math.floor(s%60).toString().padStart(2,'0');
-  return `${m}:${ss}`;
-}
+    container.appendChild(controls);
+    document.getElementById("trackContainer").appendChild(container);
 
-function startRaf(){
-  if (raf) return;
-  (function tick(){
-    const pos = isPlaying ? (audioCtx.currentTime - playStartedAt) : pausedAt;
-    el.seek.value = Math.min(pos, duration);
-    updateTimeDisplay();
-    // loop handling
-    if (isPlaying && el.loopToggle.checked && pos >= duration) {
-      createSources(0);
-    }
-    raf = requestAnimationFrame(tick);
-  })();
-}
-function stopRaf(){ if (raf) cancelAnimationFrame(raf); raf = null; }
+    // WaveSurfer visual
+    const ws = WaveSurfer.create({
+        container: waveformDiv,
+        waveColor: '#999',
+        progressColor: '#4caf50',
+        height: 80,
+        responsive: true,
+        cursorWidth: 1,
+        interact: false // user can't scrub independently
+    });
+    ws.load(trackInfo.file);
 
-function updateTimeDisplay(){
-  const pos = isPlaying ? (audioCtx.currentTime - playStartedAt) : pausedAt;
-  el.timeDisplay.textContent = `${formatTime(pos)} / ${formatTime(duration)}`;
-}
+    // Web Audio for volume/meter
+    const trackSource = audioCtx.createBufferSource();
+    fetch(trackInfo.file)
+        .then(res => res.arrayBuffer())
+        .then(buf => audioCtx.decodeAudioData(buf))
+        .then(decoded => {
+            trackSource.buffer = decoded;
+            trackSource.loop = false;
+        });
 
-function stopSources(){
-  tracks.forEach(t=>{
-    if (t._source) {
-      try { t._source.stop(0); } catch(e){}
-      t._source.disconnect?.();
-      t._source = null;
-    }
-  });
-  isPlaying = false;
-  stopRaf();
-}
+    const gainNode = audioCtx.createGain();
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-function createSources(atOffset=0){
-  // Stop any currently playing sources
-  stopSources();
-  const when = audioCtx.currentTime + 0.03; // small schedule latency
-  tracks.forEach(t=>{
-    // If this track has no buffer or offset beyond duration, skip
-    if (!t.buffer || atOffset >= t.buffer.duration) { t._source = null; return; }
-    const src = audioCtx.createBufferSource();
-    src.buffer = t.buffer;
-    src.connect(t.gainNode);
-    src.start(when, atOffset);
-    t._source = src;
-    t._startWhen = when;
-    t._startOffset = atOffset;
-  });
-  playStartedAt = when - atOffset;
-  isPlaying = true;
-  startRaf();
-}
+    trackSource.connect(gainNode).connect(analyser).connect(audioCtx.destination);
 
-function startPlayback(){
-  if (!tracks.length) return;
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  createSources(pausedAt);
-}
-function pausePlayback(){
-  if (!isPlaying) return;
-  const now = audioCtx.currentTime;
-  pausedAt = now - playStartedAt;
-  stopSources();
-}
-function stopPlayback(){
-  stopSources();
-  pausedAt = 0;
-  el.seek.value = 0;
-  updateTimeDisplay();
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   TRACK UI
-   ───────────────────────────────────────────────────────────────────────────── */
-
-function renderTracks(){
-  el.tracks.innerHTML = '';
-  tracks.forEach((t, idx) => {
-    const row = document.createElement('div');
-    row.className = 'track';
-
-    const name = document.createElement('div');
-    name.className = 't-name';
-    name.textContent = t.name;
-
-    const controls = document.createElement('div');
-    controls.className = 't-controls';
-
-    const btnSolo = document.createElement('div');
-    btnSolo.className = 'pill';
-    btnSolo.textContent = 'Solo';
-    btnSolo.addEventListener('click', ()=>{
-      t.solo = !t.solo;
-      btnSolo.classList.toggle('active', t.solo);
-      updateGains();
+    // Controls
+    volSlider.addEventListener("input", () => {
+        gainNode.gain.value = parseFloat(volSlider.value);
     });
 
-    const btnMute = document.createElement('div');
-    btnMute.className = 'pill';
-    btnMute.textContent = 'Mute';
-    btnMute.addEventListener('click', ()=>{
-      t.mute = !t.mute;
-      btnMute.classList.toggle('active', t.mute);
-      updateGains();
+    muteBtn.addEventListener("click", () => {
+        gainNode.gain.value = gainNode.gain.value > 0 ? 0 : volSlider.value;
     });
 
-    controls.append(btnSolo, btnMute);
-
-    const volWrap = document.createElement('div');
-    volWrap.className = 't-slider';
-    const volLabel = document.createElement('span');
-    volLabel.textContent = 'Vol';
-    const vol = document.createElement('input');
-    vol.type = 'range'; vol.min = '0'; vol.max = '1'; vol.step = '0.01'; vol.value = t.volume.toString();
-    const volVal = document.createElement('span');
-    volVal.textContent = Math.round(t.volume*100)+'%';
-    vol.addEventListener('input', ()=>{
-      t.volume = parseFloat(vol.value);
-      volVal.textContent = Math.round(t.volume*100)+'%';
-      updateGains();
+    soloBtn.addEventListener("click", () => {
+        trackData.forEach(t => {
+            t.gainNode.gain.value = (t === track) ? volSlider.value : 0;
+        });
     });
-    volWrap.append(volLabel, vol, volVal);
 
-    row.append(name, controls, volWrap);
-    el.tracks.appendChild(row);
-
-    // Save elements for visual state updates
-    t._el = { row, btnSolo, btnMute, vol };
-    // reflect initial state
-    btnSolo.classList.toggle('active', t.solo);
-    btnMute.classList.toggle('active', t.mute);
-  });
+    const track = { ws, gainNode, analyser, dataArray, meterFill, volSlider, trackSource };
+    trackData.push(track);
 }
 
-function updateGains(){
-  const anySolo = tracks.some(t => t.solo);
-  tracks.forEach(t => {
-    const g = t.gainNode;
-    if (!g) return;
-    const vol = (t.volume || 1);
-    let target = vol;
-    if (anySolo) target = t.solo ? vol : 0;
-    if (t.mute) target = 0;
-    g.gain.value = target;
-  });
-}
+currentSong.forEach(createTrackElement);
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   SONG LOADING
-   ───────────────────────────────────────────────────────────────────────────── */
-
-async function fetchArrayBuffer(url){
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Fetch failed: ${url}`);
-  return await res.arrayBuffer();
-}
-
-async function decodeAudio(arrBuf){
-  return new Promise((resolve, reject) => {
-    audioCtx.decodeAudioData(arrBuf, resolve, reject);
-  });
-}
-
-/**
- * Loads a song by key. Highlights the active button, fetches & decodes all stems,
- * builds track objects, and prepares the UI.
- */
-async function loadSong(songKey, buttonEl){
-  // UI: mark active button
-  document.querySelectorAll('.song-btn').forEach(b => b.classList.remove('active'));
-  if (buttonEl) buttonEl.classList.add('active');
-
-  // Stop previous playback & clear existing
-  stopPlayback();
-  stopSources();
-  tracks = [];
-  el.tracks.innerHTML = '';
-  el.loadHint.textContent = `Loading "${songKey}"…`;
-
-  const cfg = SONGS[songKey];
-  if (!cfg) return;
-
-  const folder = cfg.folder.replace(/\/+$/,''); // trim trailing slash
-  let maxDur = 0;
-
-  // Load sequentially (simpler error surfacing); could be parallel with Promise.all
-  for (const stem of cfg.stems) {
-    const url = `${folder}/${stem.file}`;
-    try {
-      const arr = await fetchArrayBuffer(url);
-      const buffer = await decodeAudio(arr);
-
-      const track = {
-        name: stem.name || stem.file,
-        buffer,
-        gainNode: audioCtx.createGain(),
-        volume: 1,
-        mute: false,
-        solo: false
-      };
-      track.gainNode.connect(masterGain);
-
-      tracks.push(track);
-      maxDur = Math.max(maxDur, buffer.duration);
-    } catch (err) {
-      console.error('Error loading stem:', url, err);
-      // Insert a disabled track entry so the band sees it's missing
-      tracks.push({
-        name: (stem.name || stem.file) + ' (missing)',
-        buffer: null,
-        gainNode: null,
-        volume: 0,
-        mute: true,
-        solo: false
-      });
+// Master Play/Pause
+const playBtn = document.createElement("button");
+playBtn.textContent = "Play";
+playBtn.style.margin = "20px";
+playBtn.style.fontSize = "1.2em";
+playBtn.addEventListener("click", () => {
+    if (!playing) {
+        audioCtx.resume();
+        trackData.forEach(t => {
+            const src = audioCtx.createBufferSource();
+            src.buffer = t.trackSource.buffer;
+            src.loop = false;
+            src.connect(t.gainNode);
+            t.src = src;
+            src.start(0);
+            t.ws.play();
+        });
+        playing = true;
+        playBtn.textContent = "Pause";
+    } else {
+        trackData.forEach(t => {
+            t.src.stop();
+            t.ws.pause();
+        });
+        playing = false;
+        playBtn.textContent = "Play";
     }
-  }
-
-  duration = maxDur || 0;
-  el.seek.max = duration || 1;
-  pausedAt = 0;
-  renderTracks();
-  updateGains();
-  updateTimeDisplay();
-  el.loadHint.textContent = `Loaded "${songKey}".`;
-  currentSongKey = songKey;
-}
-
-/* ─────────────────────────────────────────────────────────────────────────────
-   OPTIONAL: Auto-load the first song on page open
-   ───────────────────────────────────────────────────────────────────────────── */
-window.addEventListener('load', ()=>{
-  const firstKey = Object.keys(SONGS)[0];
-  const firstBtn = document.querySelector('.song-btn');
-  if (firstKey && firstBtn) loadSong(firstKey, firstBtn);
 });
+document.body.insertBefore(playBtn, document.getElementById("trackContainer"));
+
+// Loudness meter loop
+function updateMeters() {
+    trackData.forEach(t => {
+        t.analyser.getByteFrequencyData(t.dataArray);
+        let sum = 0;
+        for (let i = 0; i < t.dataArray.length; i++) sum += t.dataArray[i];
+        const avg = sum / t.dataArray.length;
+        const percent = Math.min(100, (avg / 255) * 100);
+        t.meterFill.style.height = percent + "%";
+    });
+    requestAnimationFrame(updateMeters);
+}
+updateMeters();
 </script>
 </body>
 </html>
