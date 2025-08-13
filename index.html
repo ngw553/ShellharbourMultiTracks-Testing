@@ -1,106 +1,442 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Church Band Multitracks</title>
-  <script src="https://unpkg.com/wavesurfer.js"></script>
-  <script src="https://unpkg.com/wavesurfer-multitrack"></script>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #f4f4f4;
-      padding: 20px;
-      max-width: 900px;
-      margin: auto;
-    }
-    h1 {
-      text-align: center;
-    }
-    .song-buttons {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    button {
-      margin: 5px;
-      padding: 10px 15px;
-      font-size: 16px;
-      cursor: pointer;
-      border: none;
-      background: #333;
-      color: white;
-      border-radius: 5px;
-    }
-    button:hover {
-      background: #555;
-    }
-    #player {
-      margin-top: 20px;
-      background: white;
-      padding: 15px;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Church Multitrack Player</title>
+<style>
+  :root {
+    --bg:#0f1115; --panel:#151821; --panel2:#1b2030; --text:#e7e9ee; --muted:#9aa3b2;
+    --accent:#74c0fc; --accent2:#a78bfa; --danger:#ff6b6b; --ok:#51cf66; --border:#23283a;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+  .wrap { max-width:1100px; margin:0 auto; padding:24px 16px 40px; }
+  h1 { margin:0 0 8px; font-size:28px; font-weight:700; letter-spacing:.2px; }
+  p.lead { margin:0 0 18px; color:var(--muted); }
+  .songs { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 18px; }
+  .song-btn {
+    border:1px solid var(--border); background:linear-gradient(180deg,var(--panel),var(--panel2));
+    color:var(--text); padding:10px 14px; border-radius:12px; cursor:pointer; transition:transform .06s ease, border-color .2s ease;
+  }
+  .song-btn:hover { transform: translateY(-1px); border-color:#2c3350; }
+  .song-btn.active { outline:2px solid var(--accent); border-color:transparent; }
+  .toolbar {
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:12px;
+  }
+  .toolbar .group { display:flex; gap:8px; align-items:center; }
+  .btn {
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    padding:8px 10px; border-radius:10px; cursor:pointer; min-width:44px; text-align:center;
+  }
+  .btn:hover { border-color:#313852; }
+  .btn.primary { background:linear-gradient(180deg,#24314a,#1d2740); border-color:#2a3551; }
+  .btn.danger { background:linear-gradient(180deg,#3a1f27,#301a22); border-color:#4b1e26; color:#ffd7dc; }
+  .toggle { display:flex; align-items:center; gap:8px; }
+  .time { margin-left:auto; font-variant-numeric: tabular-nums; color:#c6cee0 }
+  .seek { appearance:none; width:100%; height:8px; border-radius:999px; background:#22283b; outline:none; }
+  .seek::-webkit-slider-thumb{ appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid #0b0f1c; }
+  .seek::-moz-range-thumb{ width:16px; height:16px; border:0; border-radius:50%; background:var(--accent); cursor:pointer; }
+  .panel {
+    background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:12px; margin-top:14px;
+  }
+  .tracks { display:flex; flex-direction:column; gap:8px; }
+  .track {
+    display:grid; grid-template-columns: 220px 1fr auto; gap:12px; align-items:center;
+    background:linear-gradient(180deg,var(--panel),#121724); border:1px solid var(--border); border-radius:12px; padding:10px;
+  }
+  .t-name { font-weight:600; color:#e9ecf5; }
+  .t-controls { display:flex; gap:10px; align-items:center; }
+  .t-controls .pill {
+    background:var(--panel2); border:1px solid var(--border); border-radius:999px; padding:6px 10px; color:#e8ebf6; min-width:42px; text-align:center; cursor:pointer;
+  }
+  .t-controls .pill.active { outline:2px solid var(--accent2); }
+  .t-slider { display:flex; align-items:center; gap:8px; color:#c8d0e2 }
+  .t-slider input[type="range"]{ width:180px; }
+  .master { display:flex; gap:12px; align-items:center; color:#c8d0e2 }
+  small.hint { color:var(--muted); }
+  .hidden { display:none; }
+</style>
 </head>
 <body>
+<div class="wrap">
+  <h1>Church Multitrack Player</h1>
+  <p class="lead">Click a song to load its stems. Use <b>Solo/Mute</b> and per-track <b>Volume</b>. Space = Play/Pause.</p>
 
-<h1>Church Band Multitracks</h1>
-<p style="text-align:center;">Select a song below to load its practice stems. Use the mute/solo buttons to hear parts more clearly.</p>
+  <!-- SONG BUTTONS -->
+  <div class="songs" id="songButtons"></div>
 
-<!-- Song Selection -->
-<div class="song-buttons">
-  <button onclick="loadSong('HailTheKing')">Hail The King</button>
-  <button onclick="loadSong('Jesus')">Jesus</button>
+  <!-- TRANSPORT / MASTER -->
+  <div class="toolbar panel">
+    <div class="group">
+      <button id="playBtn" class="btn primary" title="Play (Space)">▶</button>
+      <button id="pauseBtn" class="btn" title="Pause (Space)">⏸</button>
+      <button id="stopBtn" class="btn" title="Stop (Ctrl+S)">⏹</button>
+    </div>
+    <div class="group master">
+      <span>Master</span>
+      <input id="masterVol" type="range" min="0" max="1" step="0.01" value="1" />
+    </div>
+    <label class="toggle group" title="Loop">
+      <input id="loopToggle" type="checkbox" />
+      <span>Loop</span>
+    </label>
+    <div class="time" id="timeDisplay">00:00 / 00:00</div>
+  </div>
+
+  <!-- SEEK BAR -->
+  <div class="panel">
+    <input id="seek" class="seek" type="range" min="0" max="1" step="0.001" value="0" />
+    <div class="group" style="justify-content:space-between; margin-top:6px">
+      <small class="hint">Drag to scrub</small>
+      <small class="hint" id="loadHint">Load a song to begin</small>
+    </div>
+  </div>
+
+  <!-- TRACKS LIST -->
+  <div id="tracks" class="tracks panel"></div>
+
+  <p class="lead" style="margin-top:18px">Pro tip: export stems from Cubase from the same start (bar 1) and same sample rate for perfect sync.</p>
 </div>
 
-<!-- Player Area -->
-<div id="player"></div>
-
 <script>
-let wavesurfer;
+/* ─────────────────────────────────────────────────────────────────────────────
+   CONFIG: Define your songs and stems here. Each song points to a folder
+   (relative to this index.html on GitHub Pages) that contains the audio files.
+   Add/remove songs & stems as needed.
+   ───────────────────────────────────────────────────────────────────────────── */
 
-// Stems for each song
-const songData = {
-  "HailTheKing": [
-    { src: 'HailTheKing/Drums.mp3',   name: 'Drums',   color: 'rgba(255,0,0,0.5)' },
-    { src: 'HailTheKing/Bass.mp3',    name: 'Bass',    color: 'rgba(0,255,0,0.5)' },
-    { src: 'HailTheKing/Guitar.mp3',  name: 'Guitar',  color: 'rgba(0,0,255,0.5)' },
-    { src: 'HailTheKing/Vocal.mp3',  name: 'Vocals',  color: 'rgba(255,255,0,0.5)' },
-    { src: 'HailTheKing/Piano.mp3',  name: 'Piano',  color: 'rgba(0,255,255,0.5)' },
-    { src: 'HailTheKing/Violin.mp3',  name: 'Violin',  color: 'rgba(125,125,125,0.5)' }
-  ],
-  "Jesus!": [
-    { src: 'Jesus/Drums.mp3',   name: 'Drums',   color: 'rgba(255,0,0,0.5)' },
-    { src: 'Jesus/Bass.mp3',    name: 'Bass',    color: 'rgba(0,255,0,0.5)' },
-    { src: 'Jesus/Guitar.mp3',  name: 'Guitar',  color: 'rgba(0,0,255,0.5)' },
-    { src: 'Jesus/Vocal.mp3',  name: 'Vocals',  color: 'rgba(255,255,0,0.5)' },
-    { src: 'Jesus/Piano.mp3',  name: 'Piano',  color: 'rgba(0,255,255,0.5)' },
-    { src: 'Jesus/Violin.mp3',  name: 'Violin',  color: 'rgba(125,125,125,0.5)' }
-  ]
+const SONGS = {
+  "Hail The King": {
+    folder: "HailTheKing",
+    stems: [
+      { file: "Drums.mp3",  name: "Drums" },
+      { file: "Bass.mp3",   name: "Bass" },
+      { file: "Guitar.mp3", name: "Acoustic Gtr" },
+      { file: "Piano.mp3", name: "Piano" },
+      { file: "Violin.mp3",   name: "Violin" },
+      { file: "Vocal.mp3", name: "Vocal" },
+      // { file: "BVs.wav",    name: "BVs" },
+      // { file: "Click.wav",  name: "Click" },
+    ]
+  },
+  "Another Song": {
+    folder: "AnotherSong",
+    stems: [
+      { file: "Drums.wav",  name: "Drums" },
+      { file: "Bass.wav",   name: "Bass" },
+      { file: "Guitar.wav", name: "Guitar" },
+      { file: "Vox.wav",    name: "Vocals" },
+    ]
+  }
 };
 
-// Load song function
-function loadSong(songName) {
-  document.getElementById('player').innerHTML = ''; // Clear old player
-  if (wavesurfer) wavesurfer.destroy();
+/* ─────────────────────────────────────────────────────────────────────────────
+   AUDIO ENGINE
+   ───────────────────────────────────────────────────────────────────────────── */
 
-  wavesurfer = WaveSurfer.MultiTrack.create(songData[songName], {
-    container: '#player',
-    waveColor: '#ddd',
-    progressColor: '#555',
-    height: 80,
-    minPxPerSec: 50,
-    barHeight: 1,
-    cursorWidth: 2,
-    normalize: true
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const audioCtx = new AudioContext();
+
+let tracks = []; // populated after loading a song
+let masterGain = audioCtx.createGain();
+masterGain.gain.value = 1;
+masterGain.connect(audioCtx.destination);
+
+let isPlaying = false;
+let playStartedAt = 0;       // audioCtx time when play started (aligns with pos 0)
+let pausedAt = 0;            // current position in seconds when paused
+let duration = 0;
+let raf = null;
+let currentSongKey = null;
+
+const el = {
+  songButtons: document.getElementById('songButtons'),
+  tracks: document.getElementById('tracks'),
+  playBtn: document.getElementById('playBtn'),
+  pauseBtn: document.getElementById('pauseBtn'),
+  stopBtn: document.getElementById('stopBtn'),
+  masterVol: document.getElementById('masterVol'),
+  loopToggle: document.getElementById('loopToggle'),
+  seek: document.getElementById('seek'),
+  timeDisplay: document.getElementById('timeDisplay'),
+  loadHint: document.getElementById('loadHint'),
+};
+
+// Build song buttons
+for (const key of Object.keys(SONGS)) {
+  const b = document.createElement('button');
+  b.className = 'song-btn';
+  b.textContent = key;
+  b.addEventListener('click', () => loadSong(key, b));
+  el.songButtons.appendChild(b);
+}
+
+el.masterVol.addEventListener('input', ()=> masterGain.gain.value = parseFloat(el.masterVol.value));
+
+el.playBtn.addEventListener('click', ()=> { if (tracks.length) startPlayback(); });
+el.pauseBtn.addEventListener('click', ()=> pausePlayback());
+el.stopBtn.addEventListener('click', ()=> stopPlayback());
+
+el.seek.addEventListener('input', (e)=>{
+  const val = parseFloat(e.target.value);
+  pausedAt = val;
+  if (isPlaying) {
+    createSources(pausedAt);
+  } else {
+    updateTimeDisplay();
+  }
+});
+
+window.addEventListener('keydown', e=>{
+  if (e.code === 'Space') { e.preventDefault(); if (isPlaying) pausePlayback(); else startPlayback(); }
+  if (e.code === 'KeyS' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); stopPlayback(); }
+});
+
+// Core helpers
+function formatTime(s){
+  if (!isFinite(s) || s<=0) return '00:00';
+  const m = Math.floor(s/60);
+  const ss = Math.floor(s%60).toString().padStart(2,'0');
+  return `${m}:${ss}`;
+}
+
+function startRaf(){
+  if (raf) return;
+  (function tick(){
+    const pos = isPlaying ? (audioCtx.currentTime - playStartedAt) : pausedAt;
+    el.seek.value = Math.min(pos, duration);
+    updateTimeDisplay();
+    // loop handling
+    if (isPlaying && el.loopToggle.checked && pos >= duration) {
+      createSources(0);
+    }
+    raf = requestAnimationFrame(tick);
+  })();
+}
+function stopRaf(){ if (raf) cancelAnimationFrame(raf); raf = null; }
+
+function updateTimeDisplay(){
+  const pos = isPlaying ? (audioCtx.currentTime - playStartedAt) : pausedAt;
+  el.timeDisplay.textContent = `${formatTime(pos)} / ${formatTime(duration)}`;
+}
+
+function stopSources(){
+  tracks.forEach(t=>{
+    if (t._source) {
+      try { t._source.stop(0); } catch(e){}
+      t._source.disconnect?.();
+      t._source = null;
+    }
   });
+  isPlaying = false;
+  stopRaf();
+}
 
-  // Auto-loop when song finishes
-  wavesurfer.on('finish', () => {
-    wavesurfer.play(0);
+function createSources(atOffset=0){
+  // Stop any currently playing sources
+  stopSources();
+  const when = audioCtx.currentTime + 0.03; // small schedule latency
+  tracks.forEach(t=>{
+    // If this track has no buffer or offset beyond duration, skip
+    if (!t.buffer || atOffset >= t.buffer.duration) { t._source = null; return; }
+    const src = audioCtx.createBufferSource();
+    src.buffer = t.buffer;
+    src.connect(t.gainNode);
+    src.start(when, atOffset);
+    t._source = src;
+    t._startWhen = when;
+    t._startOffset = atOffset;
+  });
+  playStartedAt = when - atOffset;
+  isPlaying = true;
+  startRaf();
+}
+
+function startPlayback(){
+  if (!tracks.length) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  createSources(pausedAt);
+}
+function pausePlayback(){
+  if (!isPlaying) return;
+  const now = audioCtx.currentTime;
+  pausedAt = now - playStartedAt;
+  stopSources();
+}
+function stopPlayback(){
+  stopSources();
+  pausedAt = 0;
+  el.seek.value = 0;
+  updateTimeDisplay();
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TRACK UI
+   ───────────────────────────────────────────────────────────────────────────── */
+
+function renderTracks(){
+  el.tracks.innerHTML = '';
+  tracks.forEach((t, idx) => {
+    const row = document.createElement('div');
+    row.className = 'track';
+
+    const name = document.createElement('div');
+    name.className = 't-name';
+    name.textContent = t.name;
+
+    const controls = document.createElement('div');
+    controls.className = 't-controls';
+
+    const btnSolo = document.createElement('div');
+    btnSolo.className = 'pill';
+    btnSolo.textContent = 'Solo';
+    btnSolo.addEventListener('click', ()=>{
+      t.solo = !t.solo;
+      btnSolo.classList.toggle('active', t.solo);
+      updateGains();
+    });
+
+    const btnMute = document.createElement('div');
+    btnMute.className = 'pill';
+    btnMute.textContent = 'Mute';
+    btnMute.addEventListener('click', ()=>{
+      t.mute = !t.mute;
+      btnMute.classList.toggle('active', t.mute);
+      updateGains();
+    });
+
+    controls.append(btnSolo, btnMute);
+
+    const volWrap = document.createElement('div');
+    volWrap.className = 't-slider';
+    const volLabel = document.createElement('span');
+    volLabel.textContent = 'Vol';
+    const vol = document.createElement('input');
+    vol.type = 'range'; vol.min = '0'; vol.max = '1'; vol.step = '0.01'; vol.value = t.volume.toString();
+    const volVal = document.createElement('span');
+    volVal.textContent = Math.round(t.volume*100)+'%';
+    vol.addEventListener('input', ()=>{
+      t.volume = parseFloat(vol.value);
+      volVal.textContent = Math.round(t.volume*100)+'%';
+      updateGains();
+    });
+    volWrap.append(volLabel, vol, volVal);
+
+    row.append(name, controls, volWrap);
+    el.tracks.appendChild(row);
+
+    // Save elements for visual state updates
+    t._el = { row, btnSolo, btnMute, vol };
+    // reflect initial state
+    btnSolo.classList.toggle('active', t.solo);
+    btnMute.classList.toggle('active', t.mute);
   });
 }
-</script>
 
+function updateGains(){
+  const anySolo = tracks.some(t => t.solo);
+  tracks.forEach(t => {
+    const g = t.gainNode;
+    if (!g) return;
+    const vol = (t.volume || 1);
+    let target = vol;
+    if (anySolo) target = t.solo ? vol : 0;
+    if (t.mute) target = 0;
+    g.gain.value = target;
+  });
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   SONG LOADING
+   ───────────────────────────────────────────────────────────────────────────── */
+
+async function fetchArrayBuffer(url){
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Fetch failed: ${url}`);
+  return await res.arrayBuffer();
+}
+
+async function decodeAudio(arrBuf){
+  return new Promise((resolve, reject) => {
+    audioCtx.decodeAudioData(arrBuf, resolve, reject);
+  });
+}
+
+/**
+ * Loads a song by key. Highlights the active button, fetches & decodes all stems,
+ * builds track objects, and prepares the UI.
+ */
+async function loadSong(songKey, buttonEl){
+  // UI: mark active button
+  document.querySelectorAll('.song-btn').forEach(b => b.classList.remove('active'));
+  if (buttonEl) buttonEl.classList.add('active');
+
+  // Stop previous playback & clear existing
+  stopPlayback();
+  stopSources();
+  tracks = [];
+  el.tracks.innerHTML = '';
+  el.loadHint.textContent = `Loading "${songKey}"…`;
+
+  const cfg = SONGS[songKey];
+  if (!cfg) return;
+
+  const folder = cfg.folder.replace(/\/+$/,''); // trim trailing slash
+  let maxDur = 0;
+
+  // Load sequentially (simpler error surfacing); could be parallel with Promise.all
+  for (const stem of cfg.stems) {
+    const url = `${folder}/${stem.file}`;
+    try {
+      const arr = await fetchArrayBuffer(url);
+      const buffer = await decodeAudio(arr);
+
+      const track = {
+        name: stem.name || stem.file,
+        buffer,
+        gainNode: audioCtx.createGain(),
+        volume: 1,
+        mute: false,
+        solo: false
+      };
+      track.gainNode.connect(masterGain);
+
+      tracks.push(track);
+      maxDur = Math.max(maxDur, buffer.duration);
+    } catch (err) {
+      console.error('Error loading stem:', url, err);
+      // Insert a disabled track entry so the band sees it's missing
+      tracks.push({
+        name: (stem.name || stem.file) + ' (missing)',
+        buffer: null,
+        gainNode: null,
+        volume: 0,
+        mute: true,
+        solo: false
+      });
+    }
+  }
+
+  duration = maxDur || 0;
+  el.seek.max = duration || 1;
+  pausedAt = 0;
+  renderTracks();
+  updateGains();
+  updateTimeDisplay();
+  el.loadHint.textContent = `Loaded "${songKey}".`;
+  currentSongKey = songKey;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   OPTIONAL: Auto-load the first song on page open
+   ───────────────────────────────────────────────────────────────────────────── */
+window.addEventListener('load', ()=>{
+  const firstKey = Object.keys(SONGS)[0];
+  const firstBtn = document.querySelector('.song-btn');
+  if (firstKey && firstBtn) loadSong(firstKey, firstBtn);
+});
+</script>
 </body>
 </html>
