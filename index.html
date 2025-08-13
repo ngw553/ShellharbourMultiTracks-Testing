@@ -1,832 +1,461 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Shellharbour City Anglican Multitracks</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Shellharbour City Anglican Multitrack Player</title>
 <style>
-  /* Root colors */
   :root {
-    --bg:#12141d; --panel:#1d2030; --panel2:#272c44; --text:#e7e9ee; --muted:#8a95a1;
-    --accent:#74c0fc; --accent2:#a78bfa; --danger:#ff6b6b; --ok:#51cf66; --border:#2a2f46;
+    --bg:#0f1115; --panel:#151821; --panel2:#1b2030; --text:#e7e9ee; --muted:#9aa3b2;
+    --accent:#74c0fc; --accent2:#a78bfa; --danger:#ff6b6b; --ok:#51cf66; --border:#23283a;
   }
-  /* Reset & basics */
   * { box-sizing: border-box; }
-  body {
-    margin:0; padding:0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-      Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    user-select: none;
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+  .wrap { max-width:1100px; margin:0 auto; padding:24px 16px 40px; }
+  h1 { margin:0 0 8px; font-size:28px; font-weight:700; letter-spacing:.2px; }
+  p.lead { margin:0 0 18px; color:var(--muted); }
+  .songs { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 18px; }
+  .song-btn {
+    border:1px solid var(--border); background:linear-gradient(180deg,var(--panel),var(--panel2));
+    color:var(--text); padding:10px 14px; border-radius:12px; cursor:pointer; transition:transform .06s ease, border-color .2s ease;
   }
-  .container {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 12px 16px 40px;
-  }
-  h1 {
-    font-weight: 700;
-    font-size: 2rem;
-    margin-bottom: 8px;
-    text-align: center;
-  }
-  p.lead {
-    text-align: center;
-    margin-top: 0;
-    margin-bottom: 20px;
-    color: var(--muted);
-    font-size: 1.1rem;
-  }
-  /* Song selection dropdown */
-  #songSelect {
-    width: 100%;
-    font-size: 1.1rem;
-    padding: 8px 12px;
-    border-radius: 10px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    color: var(--text);
-    margin-bottom: 18px;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    cursor: pointer;
-  }
-  /* Controls toolbar */
+  .song-btn:hover { transform: translateY(-1px); border-color:#2c3350; }
+  .song-btn.active { outline:2px solid var(--accent); border-color:transparent; }
   .toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-    justify-content: center;
-    background: var(--panel);
-    border-radius: 14px;
-    border: 1px solid var(--border);
-    padding: 12px 8px;
-    margin-bottom: 18px;
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:12px;
   }
+  .toolbar .group { display:flex; gap:8px; align-items:center; }
   .btn {
-    background: var(--panel2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    color: var(--text);
-    padding: 8px 14px;
-    font-size: 1rem;
-    cursor: pointer;
-    min-width: 48px;
-    user-select: none;
-    text-align: center;
-    transition: background-color 0.2s ease;
+    background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    padding:8px 10px; border-radius:10px; cursor:pointer; min-width:44px; text-align:center;
   }
-  .btn.primary:hover {
-    background: var(--accent);
-    border-color: var(--accent2);
+  .btn:hover { border-color:#313852; }
+  .btn.primary { background:linear-gradient(180deg,#24314a,#1d2740); border-color:#2a3551; }
+  .btn.danger { background:linear-gradient(180deg,#3a1f27,#301a22); border-color:#4b1e26; color:#ffd7dc; }
+  .toggle { display:flex; align-items:center; gap:8px; }
+  .time { margin-left:auto; font-variant-numeric: tabular-nums; color:#c6cee0 }
+  .seek { appearance:none; width:100%; height:8px; border-radius:999px; background:#22283b; outline:none; }
+  .seek::-webkit-slider-thumb{ appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid #0b0f1c; }
+  .seek::-moz-range-thumb{ width:16px; height:16px; border:0; border-radius:50%; background:var(--accent); cursor:pointer; }
+  .panel {
+    background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:12px; margin-top:14px;
   }
-  .btn.toggle {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    user-select: none;
-  }
-  .btn.toggle input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-  }
-  .seek-bar {
-    width: 100%;
-    height: 8px;
-    border-radius: 9999px;
-    background: #22283b;
-    -webkit-appearance: none;
-    margin: 0;
-    cursor: pointer;
-  }
-  .seek-bar::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--accent);
-    border: 2px solid #0b0f1c;
-    cursor: pointer;
-    margin-top: -5px;
-  }
-  .seek-bar::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: var(--accent);
-    border: none;
-    cursor: pointer;
-  }
-  /* Time display */
-  #timeDisplay {
-    font-variant-numeric: tabular-nums;
-    color: var(--muted);
-    min-width: 100px;
-    text-align: center;
-    user-select: none;
-  }
-  /* Tracks container */
-  #tracks {
-    margin-top: 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  /* Single track */
+  .tracks { display:flex; flex-direction:column; gap:8px; }
   .track {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    background: var(--panel);
-    border-radius: 12px;
-    border: 1px solid var(--border);
-    padding: 12px;
-    align-items: center;
+    display:grid; grid-template-columns: 220px 1fr auto; gap:12px; align-items:center;
+    background:linear-gradient(180deg,var(--panel),#121724); border:1px solid var(--border); border-radius:12px; padding:10px;
   }
-  .track-name {
-    font-weight: 600;
-    color: var(--text);
-    user-select: none;
+  .t-name { font-weight:600; color:#e9ecf5; }
+  .t-controls { display:flex; gap:10px; align-items:center; }
+  .t-controls .pill {
+    background:var(--panel2); border:1px solid var(--border); border-radius:999px; padding:6px 10px; color:#e8ebf6; min-width:42px; text-align:center; cursor:pointer;
   }
-  /* Waveform container for each track */
-  .waveform {
-    width: 100%;
-    height: 64px;
-    border-radius: 8px;
-    background: #0e121f;
-  }
-  /* Controls group inside track */
-  .track-controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-  }
-  .control-group {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .control-label {
-    font-size: 0.9rem;
-    color: var(--muted);
-    user-select: none;
-    min-width: 36px;
-  }
-  input[type="range"] {
-    cursor: pointer;
-  }
-  input[type="range"].small {
-    width: 100px;
-  }
-  input[type="range"].pan {
-    width: 80px;
-  }
-  /* Metronome tick styling */
-  #metronomeIndicator {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: var(--muted);
-    margin-left: 12px;
-    transition: background-color 0.1s ease;
-  }
-  #metronomeIndicator.active {
-    background: var(--accent);
-  }
-  /* Responsive tweaks */
-  @media (max-width: 600px) {
-    .track {
-      grid-template-columns: 1fr;
-      gap: 6px;
-    }
-    .track-controls {
-      justify-content: space-between;
-    }
-    input[type="range"].small {
-      width: 80px;
-    }
-  }
+  .t-controls .pill.active { outline:2px solid var(--accent2); }
+  .t-slider { display:flex; align-items:center; gap:8px; color:#c8d0e2 }
+  .t-slider input[type="range"]{ width:180px; }
+  .master { display:flex; gap:12px; align-items:center; color:#c8d0e2 }
+  small.hint { color:var(--muted); }
+  .hidden { display:none; }
 </style>
 </head>
 <body>
-<div class="container">
+<div class="wrap">
   <h1>Shellharbour City Anglican Multitrack Player</h1>
-  <p class="lead">Select a song below, then use controls to play, solo, mute, adjust volume and pan. Space = play/pause. Ctrl+S = stop.</p>
+  <p class="lead">Click a song to load. If you click multiple times quickly, the player may try to load the tracks multiple times. Please allow time to load. Use <b>Solo/Mute</b> and per-track <b>Volume</b>. Space = Play/Pause.</p>
 
-  <!-- SONG SELECTION DROPDOWN -->
-  <select id="songSelect" aria-label="Select a song to load">
-    <option disabled selected>Loading songs…</option>
-  </select>
+  <!-- SONG BUTTONS -->
+  <div class="songs" id="songButtons"></div>
 
-  <!-- TRANSPORT CONTROLS -->
-  <div class="toolbar" role="region" aria-label="Playback controls">
-    <button class="btn primary" id="playBtn" title="Play (Space)">▶</button>
-    <button class="btn" id="pauseBtn" title="Pause (Space)">⏸</button>
-    <button class="btn" id="stopBtn" title="Stop (Ctrl+S)">⏹</button>
-
-    <label class="btn toggle" title="Loop Playback">
-      <input type="checkbox" id="loopToggle" />
-      Loop
+  <!-- TRANSPORT / MASTER -->
+  <div class="toolbar panel">
+    <div class="group">
+      <button id="playBtn" class="btn primary" title="Play (Space)">▶</button>
+      <button id="pauseBtn" class="btn" title="Pause (Space)">⏸</button>
+      <button id="stopBtn" class="btn" title="Stop (Ctrl+S)">⏹</button>
+    </div>
+    <div class="group master">
+      <span>Master</span>
+      <input id="masterVol" type="range" min="0" max="1" step="0.01" value="1" />
+    </div>
+    <label class="toggle group" title="Loop">
+      <input id="loopToggle" type="checkbox" />
+      <span>Loop</span>
     </label>
-
-    <label class="btn toggle" title="Toggle Metronome">
-      <input type="checkbox" id="metronomeToggle" />
-      Metronome
-    </label>
-    <div id="metronomeIndicator" aria-live="polite" aria-label="Metronome tick indicator"></div>
-
-    <div id="timeDisplay" aria-live="polite" aria-atomic="true">00:00 / 00:00</div>
+    <div class="time" id="timeDisplay">00:00 / 00:00</div>
   </div>
 
   <!-- SEEK BAR -->
-  <input type="range" id="seek" class="seek-bar" min="0" max="1" step="0.001" value="0" aria-label="Seek playback position" />
+  <div class="panel">
+    <input id="seek" class="seek" type="range" min="0" max="1" step="0.001" value="0" />
+    <div class="group" style="justify-content:space-between; margin-top:6px">
+      <small class="hint">Drag to scrub</small>
+      <small class="hint" id="loadHint">Load a song to begin</small>
+    </div>
+  </div>
 
-  <!-- TRACKS CONTAINER -->
-  <div id="tracks" role="list" aria-label="List of tracks"></div>
+  <!-- TRACKS LIST -->
+  <div id="tracks" class="tracks panel"></div>
 
-  <p class="lead" style="margin-top: 28px; font-size: 0.9rem; color: var(--muted); text-align: center;">
-    Export stems from Cubase starting at the same bar, same sample rate and format (.mp3) for best sync.
-  </p>
+  <p class="lead" style="margin-top:18px">If you have any questions or concerns, please contact Nick Wilson.</p>
 </div>
 
 <script>
-/* ──────────────────────────────
-   CONFIGURATION: Add your songs here.
-   Each song has:
-     - folder: folder name in repo where mp3 stems live
-     - bpm: metronome tempo for that song
-     - stems: array of { file: filename, name: displayName }
-────────────────────────────── */
-const songData = {
+/* ─────────────────────────────────────────────────────────────────────────────
+   CONFIG: Define your songs and stems here. Each song points to a folder
+   (relative to this index.html on GitHub Pages) that contains the audio files.
+   Add/remove songs & stems as needed.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+const SONGS = {
   "Hail The King": {
     folder: "HailTheKing",
-    bpm: 90,
     stems: [
-      { file: "Drums.mp3", name: "Drums" },
-      { file: "Bass.mp3", name: "Bass" },
-      { file: "Guitar.mp3", name: "Acoustic Guitar" },
-      //{ file: "Electric.mp3", name: "Electric Guitar" },
-      { file: "Piano.mp3", name: "Pads" },
-      { file: "Vocal.mp3", name: "Lead Vocals" },
-      //{ file: "BackgroundVocals.mp3", name: "Backing Vocals" }
-      { file: "Violin.mp3", name: "Violin" }
+      { file: "Drums.mp3",  name: "Drums" },
+      { file: "Bass.mp3",   name: "Bass" },
+      { file: "Guitar.mp3", name: "Acoustic Gtr" },
+      { file: "Piano.mp3", name: "Piano" },
+      { file: "Violin.mp3",   name: "Violin" },
+      { file: "Vocal.mp3", name: "Vocal" },
+      // { file: "Electric Guitar.mp3", name: "Electric Guitar" },
+      // { file: "BVs.wav",    name: "BVs" },
+      // { file: "Click.wav",  name: "Click" },
     ]
   },
   "Another Song": {
     folder: "AnotherSong",
-    bpm: 120,
     stems: [
-      { file: "Drums.mp3", name: "Drums" },
-      { file: "Bass.mp3", name: "Bass" },
-      { file: "Guitar.mp3", name: "Acoustic Guitar" },
-      //{ file: "Electric.mp3", name: "Electric Guitar" },
-      { file: "Piano.mp3", name: "Pads" },
-      { file: "Vocal.mp3", name: "Lead Vocals" },
-      //{ file: "BackgroundVocals.mp3", name: "Backing Vocals" }
-      { file: "Violin.mp3", name: "Violin" }
+      { file: "Drums.mp3",  name: "Drums" },
+      { file: "Bass.mp3",   name: "Bass" },
+      { file: "Guitar.mp3", name: "Acoustic Gtr" },
+      { file: "Piano.mp3", name: "Piano" },
+      { file: "Violin.mp3",   name: "Violin" },
+      { file: "Vocal.mp3", name: "Vocal" },
+      // { file: "Electric Guitar.mp3", name: "Electric Guitar" },
+      // { file: "BVs.wav",    name: "BVs" },
+      // { file: "Click.wav",  name: "Click" },
+    ]
+  },
+  "Jesus": {
+    folder: "Jesus",
+    stems: [
+      { file: "Drums.mp3",  name: "Drums" },
+      { file: "Bass.mp3",   name: "Bass" },
+      { file: "Guitar.mp3", name: "Acoustic Gtr" },
+      { file: "Piano.mp3", name: "Piano" },
+      { file: "Violin.mp3",   name: "Violin" },
+      { file: "Vocal.mp3", name: "Vocal" },
+      // { file: "Electric Guitar.mp3", name: "Electric Guitar" },
+      // { file: "BVs.wav",    name: "BVs" },
+      // { file: "Click.wav",  name: "Click" },
     ]
   }
 };
 
-/* ──────────────────────────────
-   WEB AUDIO SETUP
-────────────────────────────── */
+/* ─────────────────────────────────────────────────────────────────────────────
+   AUDIO ENGINE
+   ───────────────────────────────────────────────────────────────────────────── */
+
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 const audioCtx = new AudioContext();
 
-// Master gain node for overall volume control
-const masterGain = audioCtx.createGain();
+let tracks = []; // populated after loading a song
+let masterGain = audioCtx.createGain();
 masterGain.gain.value = 1;
 masterGain.connect(audioCtx.destination);
 
-// Track data will be populated after loading
-let tracks = [];
-
-// Playback state vars
 let isPlaying = false;
-let playStartedAt = 0;   // audioCtx.currentTime when playback started
-let pausedAt = 0;        // current playback position in seconds when paused
-let duration = 0;        // duration of current song in seconds
-let rafID = null;       // requestAnimationFrame ID for UI update loop
+let playStartedAt = 0;       // audioCtx time when play started (aligns with pos 0)
+let pausedAt = 0;            // current position in seconds when paused
+let duration = 0;
+let raf = null;
+let currentSongKey = null;
 
-// Metronome vars
-let metronomeIntervalID = null;
-let metronomeTickNode = null;
-let metronomeIsOn = false;
-let metronomeBpm = 100; // default bpm fallback
-
-/* ──────────────────────────────
-   HTML ELEMENTS
-────────────────────────────── */
 const el = {
-  songSelect: document.getElementById('songSelect'),
+  songButtons: document.getElementById('songButtons'),
+  tracks: document.getElementById('tracks'),
   playBtn: document.getElementById('playBtn'),
   pauseBtn: document.getElementById('pauseBtn'),
   stopBtn: document.getElementById('stopBtn'),
+  masterVol: document.getElementById('masterVol'),
   loopToggle: document.getElementById('loopToggle'),
-  metronomeToggle: document.getElementById('metronomeToggle'),
-  metronomeIndicator: document.getElementById('metronomeIndicator'),
   seek: document.getElementById('seek'),
   timeDisplay: document.getElementById('timeDisplay'),
-  tracksContainer: document.getElementById('tracks')
+  loadHint: document.getElementById('loadHint'),
 };
 
-/* ──────────────────────────────
-   SETUP EVENT LISTENERS
-────────────────────────────── */
+// Build song buttons
+for (const key of Object.keys(SONGS)) {
+  const b = document.createElement('button');
+  b.className = 'song-btn';
+  b.textContent = key;
+  b.addEventListener('click', () => loadSong(key, b));
+  el.songButtons.appendChild(b);
+}
 
-// Play / Pause / Stop buttons
-el.playBtn.addEventListener('click', () => startPlayback());
-el.pauseBtn.addEventListener('click', () => pausePlayback());
-el.stopBtn.addEventListener('click', () => stopPlayback());
+el.masterVol.addEventListener('input', ()=> masterGain.gain.value = parseFloat(el.masterVol.value));
 
-// Loop toggle
-el.loopToggle.addEventListener('change', () => {
-  // nothing extra needed here because loop is handled in animation frame loop
-});
+el.playBtn.addEventListener('click', ()=> { if (tracks.length) startPlayback(); });
+el.pauseBtn.addEventListener('click', ()=> pausePlayback());
+el.stopBtn.addEventListener('click', ()=> stopPlayback());
 
-// Metronome toggle
-el.metronomeToggle.addEventListener('change', e => {
-  metronomeIsOn = e.target.checked;
-  if (metronomeIsOn) startMetronome();
-  else stopMetronome();
-});
-
-// Seek bar input (scrubbing)
-el.seek.addEventListener('input', e => {
-  const seekPos = parseFloat(e.target.value);
-  pausedAt = seekPos;
+el.seek.addEventListener('input', (e)=>{
+  const val = parseFloat(e.target.value);
+  pausedAt = val;
   if (isPlaying) {
-    startPlaybackAt(seekPos);
+    createSources(pausedAt);
   } else {
     updateTimeDisplay();
   }
 });
 
-// Keyboard shortcuts: Space (Play/Pause), Ctrl+S (Stop)
-window.addEventListener('keydown', e => {
-  if (e.code === 'Space') {
-    e.preventDefault();
-    if (isPlaying) pausePlayback();
-    else startPlayback();
-  } else if ((e.ctrlKey || e.metaKey) && e.code === 'KeyS') {
-    e.preventDefault();
-    stopPlayback();
-  }
+window.addEventListener('keydown', e=>{
+  if (e.code === 'Space') { e.preventDefault(); if (isPlaying) pausePlayback(); else startPlayback(); }
+  if (e.code === 'KeyS' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); stopPlayback(); }
 });
 
-// Song selection change event
-el.songSelect.addEventListener('change', e => {
-  const selectedSong = e.target.value;
-  if (selectedSong) {
-    loadSong(selectedSong);
-  }
-});
-
-/* ──────────────────────────────
-   UTILITY FUNCTIONS
-────────────────────────────── */
-// Format seconds to MM:SS
-function formatTime(seconds) {
-  if (!isFinite(seconds) || seconds < 0) return "00:00";
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  return `${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
+// Core helpers
+function formatTime(s){
+  if (!isFinite(s) || s<=0) return '00:00';
+  const m = Math.floor(s/60);
+  const ss = Math.floor(s%60).toString().padStart(2,'0');
+  return `${m}:${ss}`;
 }
 
-/* ──────────────────────────────
-   AUDIO PLAYBACK & TRACKS MANAGEMENT
-────────────────────────────── */
+function startRaf(){
+  if (raf) return;
+  (function tick(){
+    const pos = isPlaying ? (audioCtx.currentTime - playStartedAt) : pausedAt;
+    el.seek.value = Math.min(pos, duration);
+    updateTimeDisplay();
+    // loop handling
+    if (isPlaying && el.loopToggle.checked && pos >= duration) {
+      createSources(0);
+    }
+    raf = requestAnimationFrame(tick);
+  })();
+}
+function stopRaf(){ if (raf) cancelAnimationFrame(raf); raf = null; }
 
-function stopSources() {
-  // Stop and disconnect all current playing sources
-  tracks.forEach(t => {
+function updateTimeDisplay(){
+  const pos = isPlaying ? (audioCtx.currentTime - playStartedAt) : pausedAt;
+  el.timeDisplay.textContent = `${formatTime(pos)} / ${formatTime(duration)}`;
+}
+
+function stopSources(){
+  tracks.forEach(t=>{
     if (t._source) {
-      try { t._source.stop(0); } catch (_) {}
+      try { t._source.stop(0); } catch(e){}
       t._source.disconnect?.();
       t._source = null;
     }
   });
   isPlaying = false;
-  stopAnimation();
+  stopRaf();
 }
 
-function createSources(offset = 0) {
-  // Stop existing sources to start new ones
+function createSources(atOffset=0){
+  // Stop any currently playing sources
   stopSources();
-
-  // Schedule all stems to play from the offset time
-  const when = audioCtx.currentTime + 0.03; // slight latency for scheduling
-  tracks.forEach(t => {
-    if (!t.buffer || offset >= t.buffer.duration) {
-      t._source = null;
-      return;
-    }
-    const source = audioCtx.createBufferSource();
-    source.buffer = t.buffer;
-    source.connect(t.gainNode);
-    source.start(when, offset);
-    t._source = source;
+  const when = audioCtx.currentTime + 0.03; // small schedule latency
+  tracks.forEach(t=>{
+    // If this track has no buffer or offset beyond duration, skip
+    if (!t.buffer || atOffset >= t.buffer.duration) { t._source = null; return; }
+    const src = audioCtx.createBufferSource();
+    src.buffer = t.buffer;
+    src.connect(t.gainNode);
+    src.start(when, atOffset);
+    t._source = src;
+    t._startWhen = when;
+    t._startOffset = atOffset;
   });
-
-  playStartedAt = when - offset;
+  playStartedAt = when - atOffset;
   isPlaying = true;
-  startAnimation();
+  startRaf();
 }
 
-function startPlayback() {
+function startPlayback(){
   if (!tracks.length) return;
-  if (audioCtx.state === "suspended") audioCtx.resume();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
   createSources(pausedAt);
 }
-
-function startPlaybackAt(position) {
-  if (!tracks.length) return;
-  if (audioCtx.state === "suspended") audioCtx.resume();
-  createSources(position);
-}
-
-function pausePlayback() {
+function pausePlayback(){
   if (!isPlaying) return;
-  pausedAt = audioCtx.currentTime - playStartedAt;
+  const now = audioCtx.currentTime;
+  pausedAt = now - playStartedAt;
   stopSources();
-  updateTimeDisplay();
 }
-
-function stopPlayback() {
+function stopPlayback(){
   stopSources();
   pausedAt = 0;
   el.seek.value = 0;
   updateTimeDisplay();
 }
 
-function startAnimation() {
-  if (rafID) return;
-  (function frame() {
-    rafID = requestAnimationFrame(frame);
-    updateSeekPosition();
-  })();
-}
+/* ─────────────────────────────────────────────────────────────────────────────
+   TRACK UI
+   ───────────────────────────────────────────────────────────────────────────── */
 
-function stopAnimation() {
-  if (rafID) {
-    cancelAnimationFrame(rafID);
-    rafID = null;
-  }
-}
+function renderTracks(){
+  el.tracks.innerHTML = '';
+  tracks.forEach((t, idx) => {
+    const row = document.createElement('div');
+    row.className = 'track';
 
-function updateSeekPosition() {
-  const pos = isPlaying ? (audioCtx.currentTime - playStartedAt) : pausedAt;
-  el.seek.value = Math.min(pos, duration);
-  updateTimeDisplay();
+    const name = document.createElement('div');
+    name.className = 't-name';
+    name.textContent = t.name;
 
-  // Loop handling
-  if (isPlaying && el.loopToggle.checked && pos >= duration) {
-    createSources(0);
-  }
-}
+    const controls = document.createElement('div');
+    controls.className = 't-controls';
 
-function updateTimeDisplay() {
-  const pos = isPlaying ? (audioCtx.currentTime - playStartedAt) : pausedAt;
-  el.timeDisplay.textContent = `${formatTime(pos)} / ${formatTime(duration)}`;
-}
-
-/* ──────────────────────────────
-   TRACK UI & CONTROLS
-────────────────────────────── */
-
-function renderTracks() {
-  el.tracksContainer.innerHTML = "";
-  tracks.forEach((track, i) => {
-    // Track wrapper
-    const trackEl = document.createElement("div");
-    trackEl.className = "track";
-    trackEl.setAttribute("role", "listitem");
-
-    // Track name
-    const nameEl = document.createElement("div");
-    nameEl.className = "track-name";
-    nameEl.textContent = track.name;
-
-    // Waveform container
-    const waveformEl = document.createElement("div");
-    waveformEl.className = "waveform";
-    trackEl.appendChild(nameEl);
-    trackEl.appendChild(waveformEl);
-
-    // Controls container
-    const controlsEl = document.createElement("div");
-    controlsEl.className = "track-controls";
-
-    // Mute checkbox
-    const muteGroup = document.createElement("div");
-    muteGroup.className = "control-group";
-    const muteLabel = document.createElement("label");
-    muteLabel.className = "control-label";
-    muteLabel.textContent = "Mute";
-    const muteInput = document.createElement("input");
-    muteInput.type = "checkbox";
-    muteInput.checked = false;
-    muteInput.title = `Mute ${track.name}`;
-    muteInput.addEventListener("change", () => {
-      track.gainNode.gain.value = muteInput.checked ? 0 : track.volume;
-      if (muteInput.checked) {
-        soloOff(i);
-      }
+    const btnSolo = document.createElement('div');
+    btnSolo.className = 'pill';
+    btnSolo.textContent = 'Solo';
+    btnSolo.addEventListener('click', ()=>{
+      t.solo = !t.solo;
+      btnSolo.classList.toggle('active', t.solo);
+      updateGains();
     });
-    muteGroup.appendChild(muteLabel);
-    muteGroup.appendChild(muteInput);
 
-    // Solo checkbox
-    const soloGroup = document.createElement("div");
-    soloGroup.className = "control-group";
-    const soloLabel = document.createElement("label");
-    soloLabel.className = "control-label";
-    soloLabel.textContent = "Solo";
-    const soloInput = document.createElement("input");
-    soloInput.type = "checkbox";
-    soloInput.checked = false;
-    soloInput.title = `Solo ${track.name}`;
-    soloInput.addEventListener("change", () => {
-      if (soloInput.checked) {
-        soloOn(i);
-        muteInput.checked = false;
-      } else {
-        soloOff(i);
-      }
+    const btnMute = document.createElement('div');
+    btnMute.className = 'pill';
+    btnMute.textContent = 'Mute';
+    btnMute.addEventListener('click', ()=>{
+      t.mute = !t.mute;
+      btnMute.classList.toggle('active', t.mute);
+      updateGains();
     });
-    soloGroup.appendChild(soloLabel);
-    soloGroup.appendChild(soloInput);
 
-    // Volume slider
-    const volumeGroup = document.createElement("div");
-    volumeGroup.className = "control-group";
-    const volumeLabel = document.createElement("label");
-    volumeLabel.className = "control-label";
-    volumeLabel.textContent = "Vol";
-    const volumeInput = document.createElement("input");
-    volumeInput.type = "range";
-    volumeInput.min = 0;
-    volumeInput.max = 1;
-    volumeInput.step = 0.01;
-    volumeInput.value = track.volume;
-    volumeInput.title = `Volume ${track.name}`;
-    volumeInput.className = "small";
-    volumeInput.addEventListener("input", () => {
-      track.volume = parseFloat(volumeInput.value);
-      if (!muteInput.checked) {
-        track.gainNode.gain.value = track.volume;
-      }
+    controls.append(btnSolo, btnMute);
+
+    const volWrap = document.createElement('div');
+    volWrap.className = 't-slider';
+    const volLabel = document.createElement('span');
+    volLabel.textContent = 'Vol';
+    const vol = document.createElement('input');
+    vol.type = 'range'; vol.min = '0'; vol.max = '1'; vol.step = '0.01'; vol.value = t.volume.toString();
+    const volVal = document.createElement('span');
+    volVal.textContent = Math.round(t.volume*100)+'%';
+    vol.addEventListener('input', ()=>{
+      t.volume = parseFloat(vol.value);
+      volVal.textContent = Math.round(t.volume*100)+'%';
+      updateGains();
     });
-    volumeGroup.appendChild(volumeLabel);
-    volumeGroup.appendChild(volumeInput);
+    volWrap.append(volLabel, vol, volVal);
 
-    // Pan slider
-    const panGroup = document.createElement("div");
-    panGroup.className = "control-group";
-    const panLabel = document.createElement("label");
-    panLabel.className = "control-label";
-    panLabel.textContent = "Pan";
-    const panInput = document.createElement("input");
-    panInput.type = "range";
-    panInput.min = -1;
-    panInput.max = 1;
-    panInput.step = 0.01;
-    panInput.value = track.pan;
-    panInput.title = `Pan ${track.name}`;
-    panInput.className = "pan";
-    panInput.addEventListener("input", () => {
-      track.pan = parseFloat(panInput.value);
-      track.pannerNode.pan.value = track.pan;
-    });
-    panGroup.appendChild(panLabel);
-    panGroup.appendChild(panInput);
+    row.append(name, controls, volWrap);
+    el.tracks.appendChild(row);
 
-    // Append controls to controls container
-    controlsEl.append(muteGroup, soloGroup, volumeGroup, panGroup);
-
-    // Append waveform and controls container
-    trackEl.appendChild(controlsEl);
-
-    // Append track to tracks container
-    el.tracksContainer.appendChild(trackEl);
-
-    // Create WaveSurfer for this track's waveform visualization
-    // Using Wavesurfer.js CDN, creating one per track
-    if (!window.WaveSurfer) {
-      console.error("WaveSurfer.js not loaded");
-      return;
-    }
-    track.wavesurfer = WaveSurfer.create({
-      container: waveformEl,
-      waveColor: '#4e74ff',
-      progressColor: '#9caeff',
-      cursorWidth: 0,
-      barWidth: 2,
-      height: 60,
-      interact: false,
-      normalize: true,
-      hideScrollbar: true,
-      backend: 'WebAudio'
-    });
-    track.wavesurfer.loadDecodedBuffer(track.buffer);
+    // Save elements for visual state updates
+    t._el = { row, btnSolo, btnMute, vol };
+    // reflect initial state
+    btnSolo.classList.toggle('active', t.solo);
+    btnMute.classList.toggle('active', t.mute);
   });
 }
 
-/* Solo logic: when one solo is active, mute all others */
-function soloOn(soloIndex) {
-  tracks.forEach((t, i) => {
-    const muteCheckbox = el.tracksContainer.children[i].querySelector("input[type=checkbox]");
-    if (i === soloIndex) {
-      // Solo track is full volume (if not muted)
-      if (!muteCheckbox.checked) {
-        t.gainNode.gain.value = t.volume;
-      }
-    } else {
-      // Mute all other tracks
-      t.gainNode.gain.value = 0;
-      // Uncheck their solo boxes and mute boxes visually
-      const trackControls = el.tracksContainer.children[i].querySelectorAll("input[type=checkbox]");
-      if (trackControls.length > 0) {
-        // solo checkbox is second checkbox, mute is first
-        trackControls[1].checked = false;
-        trackControls[0].checked = true; // mute is checked for others
-      }
-    }
+function updateGains(){
+  const anySolo = tracks.some(t => t.solo);
+  tracks.forEach(t => {
+    const g = t.gainNode;
+    if (!g) return;
+    const vol = (t.volume || 1);
+    let target = vol;
+    if (anySolo) target = t.solo ? vol : 0;
+    if (t.mute) target = 0;
+    g.gain.value = target;
   });
 }
 
-/* Turn off solo, restore previous mute states */
-function soloOff(soloIndex) {
-  tracks.forEach((t, i) => {
-    const trackControls = el.tracksContainer.children[i].querySelectorAll("input[type=checkbox]");
-    if (trackControls.length > 0) {
-      const muteChecked = trackControls[0].checked;
-      const soloChecked = trackControls[1].checked;
-      if (!muteChecked && !soloChecked) {
-        // Neither muted nor solo, volume normal
-        t.gainNode.gain.value = t.volume;
-      } else if (muteChecked) {
-        t.gainNode.gain.value = 0;
-      }
-    }
+/* ─────────────────────────────────────────────────────────────────────────────
+   SONG LOADING
+   ───────────────────────────────────────────────────────────────────────────── */
+
+async function fetchArrayBuffer(url){
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Fetch failed: ${url}`);
+  return await res.arrayBuffer();
+}
+
+async function decodeAudio(arrBuf){
+  return new Promise((resolve, reject) => {
+    audioCtx.decodeAudioData(arrBuf, resolve, reject);
   });
 }
 
-/* ──────────────────────────────
-   LOAD A SONG'S STEMS & SETUP TRACKS
-────────────────────────────── */
-async function loadSong(songName) {
-  if (!songData[songName]) {
-    alert("Song not found: " + songName);
-    return;
-  }
+/**
+ * Loads a song by key. Highlights the active button, fetches & decodes all stems,
+ * builds track objects, and prepares the UI.
+ */
+async function loadSong(songKey, buttonEl){
+  // UI: mark active button
+  document.querySelectorAll('.song-btn').forEach(b => b.classList.remove('active'));
+  if (buttonEl) buttonEl.classList.add('active');
 
-  // Stop current playback and metronome
+  // Stop previous playback & clear existing
   stopPlayback();
-  stopMetronome();
-  el.metronomeToggle.checked = false;
-  metronomeIsOn = false;
-
-  // Clear existing tracks & UI
+  stopSources();
   tracks = [];
-  el.tracksContainer.innerHTML = "";
+  el.tracks.innerHTML = '';
+  el.loadHint.textContent = `Loading "${songKey}"…`;
 
-  const song = songData[songName];
-  metronomeBpm = song.bpm || 100;
+  const cfg = SONGS[songKey];
+  if (!cfg) return;
 
-  // Load audio buffers for each stem asynchronously
-  const folder = song.folder.endsWith("/") ? song.folder : song.folder + "/";
-  try {
-    for (const stem of song.stems) {
-      const url = `${folder}${stem.file}`;
-      const audioData = await fetch(url).then(r => {
-        if (!r.ok) throw new Error(`Failed to load ${url}: ${r.statusText}`);
-        return r.arrayBuffer();
-      });
-      const buffer = await audioCtx.decodeAudioData(audioData);
+  const folder = cfg.folder.replace(/\/+$/,''); // trim trailing slash
+  let maxDur = 0;
 
-      // Create gain and panner nodes per track
-      const gainNode = audioCtx.createGain();
-      const pannerNode = audioCtx.createStereoPanner();
-      gainNode.connect(pannerNode);
-      pannerNode.connect(masterGain);
+  // Load sequentially (simpler error surfacing); could be parallel with Promise.all
+  for (const stem of cfg.stems) {
+    const url = `${folder}/${stem.file}`;
+    try {
+      const arr = await fetchArrayBuffer(url);
+      const buffer = await decodeAudio(arr);
 
-      // Default volume and pan values
-      tracks.push({
-        name: stem.name,
-        file: stem.file,
+      const track = {
+        name: stem.name || stem.file,
         buffer,
-        gainNode,
-        pannerNode,
+        gainNode: audioCtx.createGain(),
         volume: 1,
-        pan: 0,
-        _source: null,
-        wavesurfer: null,
+        mute: false,
+        solo: false
+      };
+      track.gainNode.connect(masterGain);
+
+      tracks.push(track);
+      maxDur = Math.max(maxDur, buffer.duration);
+    } catch (err) {
+      console.error('Error loading stem:', url, err);
+      // Insert a disabled track entry so the band sees it's missing
+      tracks.push({
+        name: (stem.name || stem.file) + ' (missing)',
+        buffer: null,
+        gainNode: null,
+        volume: 0,
+        mute: true,
+        solo: false
       });
     }
-  } catch (err) {
-    alert("Error loading audio files:\n" + err.message);
-    console.error(err);
-    return;
   }
 
-  // Determine duration from longest stem
-  duration = Math.max(...tracks.map(t => t.buffer.duration));
-
-  // Render track UI and waveforms
-  renderTracks();
-
-  // Reset playback state
+  duration = maxDur || 0;
+  el.seek.max = duration || 1;
   pausedAt = 0;
-  el.seek.value = 0;
+  renderTracks();
+  updateGains();
   updateTimeDisplay();
+  el.loadHint.textContent = `Loaded "${songKey}".`;
+  currentSongKey = songKey;
 }
 
-/* ──────────────────────────────
-   METRONOME FUNCTIONS
-────────────────────────────── */
-// Create a short "click" sound for the metronome using WebAudio oscillator + gain envelope
-function createMetronomeClick() {
-  const osc = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-
-  osc.type = "square";
-  osc.frequency.setValueAtTime(1000, audioCtx.currentTime);
-  gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
-
-  osc.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-
-  // Short envelope (25ms)
-  gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.025);
-
-  osc.start();
-  osc.stop(audioCtx.currentTime + 0.03);
-}
-
-// Metronome tick scheduled by interval at bpm
-function startMetronome() {
-  if (metronomeIntervalID) clearInterval(metronomeIntervalID);
-  const intervalMs = 60000 / metronomeBpm;
-
-  // Visual tick indicator toggle function
-  function tick() {
-    createMetronomeClick();
-    el.metronomeIndicator.classList.add("active");
-    setTimeout(() => el.metronomeIndicator.classList.remove("active"), 100);
-  }
-
-  tick(); // immediate first tick
-  metronomeIntervalID = setInterval(tick, intervalMs);
-}
-
-function stopMetronome() {
-  if (metronomeIntervalID) {
-    clearInterval(metronomeIntervalID);
-    metronomeIntervalID = null;
-  }
-  el.metronomeIndicator.classList.remove("active");
-}
-
-/* ──────────────────────────────
-   INITIALIZATION
-────────────────────────────── */
-// Load WaveSurfer.js dynamically from CDN
-function loadWaveSurferScript(callback) {
-  const script = document.createElement("script");
-  script.src = "https://unpkg.com/wavesurfer.js";
-  script.onload = callback;
-  script.onerror = () => alert("Failed to load WaveSurfer.js");
-  document.head.appendChild(script);
-}
-
-// Populate song dropdown
-function populateSongSelect() {
-  el.songSelect.innerHTML = '<option disabled selected>Select a song...</option>';
-  Object.keys(songData).forEach(songName => {
-    const option = document.createElement("option");
-    option.value = songName;
-    option.textContent = songName;
-    el.songSelect.appendChild(option);
-  });
-}
-
-// On page load: load WaveSurfer.js and setup UI
-window.addEventListener("load", () => {
-  populateSongSelect();
-  loadWaveSurferScript(() => {
-    // Auto-load first song on page load
-    const firstSong = Object.keys(songData)[0];
-    el.songSelect.value = firstSong;
-    loadSong(firstSong);
-  });
+/* ─────────────────────────────────────────────────────────────────────────────
+   OPTIONAL: Auto-load the first song on page open
+   ───────────────────────────────────────────────────────────────────────────── */
+window.addEventListener('load', ()=>{
+  const firstKey = Object.keys(SONGS)[0];
+  const firstBtn = document.querySelector('.song-btn');
+  if (firstKey && firstBtn) loadSong(firstKey, firstBtn);
 });
 </script>
 </body>
