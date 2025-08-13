@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Church Band Multitracks</title>
+  <script src="https://unpkg.com/wavesurfer.js"></script>
+  <script src="https://unpkg.com/wavesurfer-multitrack"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+    }
+    .song-buttons {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    button {
+      margin: 5px;
+      padding: 10px 15px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      background: #333;
+      color: white;
+      border-radius: 5px;
+    }
+    button:hover {
+      background: #555;
+    }
+    #player {
+      margin-top: 20px;
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+
+<h1>Church Band Multitracks</h1>
+<p style="text-align:center;">Select a song below to load its practice stems. Use the mute/solo buttons to hear parts more clearly.</p>
+
+<!-- Song Selection -->
+<div class="song-buttons">
+  <button onclick="loadSong('HailTheKing')">Hail The King</button>
+  <button onclick="loadSong('AnotherSong')">Another Song</button>
+</div>
+
+<!-- Player Area -->
+<div id="player"></div>
+
+<script>
+let wavesurfer;
+
+// Stems for each song
+const songData = {
+  "HailTheKing": [
+    { src: 'HailTheKing/drums.mp3',   name: 'Drums',   color: 'rgba(255,0,0,0.5)' },
+    { src: 'HailTheKing/bass.mp3',    name: 'Bass',    color: 'rgba(0,255,0,0.5)' },
+    { src: 'HailTheKing/guitar.mp3',  name: 'Guitar',  color: 'rgba(0,0,255,0.5)' },
+    { src: 'HailTheKing/vocals.mp3',  name: 'Vocals',  color: 'rgba(255,255,0,0.5)' }
+  ],
+  "AnotherSong": [
+    { src: 'AnotherSong/drums.mp3',   name: 'Drums',   color: 'rgba(255,0,0,0.5)' },
+    { src: 'AnotherSong/bass.mp3',    name: 'Bass',    color: 'rgba(0,255,0,0.5)' },
+    { src: 'AnotherSong/guitar.mp3',  name: 'Guitar',  color: 'rgba(0,0,255,0.5)' },
+    { src: 'AnotherSong/vocals.mp3',  name: 'Vocals',  color: 'rgba(255,255,0,0.5)' }
+  ]
+};
+
+// Load song function
+function loadSong(songName) {
+  document.getElementById('player').innerHTML = ''; // Clear old player
+  if (wavesurfer) wavesurfer.destroy();
+
+  wavesurfer = WaveSurfer.MultiTrack.create(songData[songName], {
+    container: '#player',
+    waveColor: '#ddd',
+    progressColor: '#555',
+    height: 80,
+    minPxPerSec: 50,
+    barHeight: 1,
+    cursorWidth: 2,
+    normalize: true
+  });
+
+  // Auto-loop when song finishes
+  wavesurfer.on('finish', () => {
+    wavesurfer.play(0);
+  });
+}
+</script>
+
+</body>
+</html>
