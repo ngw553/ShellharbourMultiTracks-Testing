@@ -566,6 +566,7 @@ window.addEventListener('load', ()=>{
   if (firstKey && firstBtn) loadSong(firstKey, firstBtn);
 });
 
+// ─── Toggle Waveforms ───
 const elToggleWave = document.getElementById('toggleWaveBtn');
 let waveHidden = false;
 
@@ -576,6 +577,15 @@ elToggleWave.addEventListener('click', () => {
       t._el.waveWrap.style.display = waveHidden ? 'none' : 'block';
     }
   });
+
+  // Update button text and highlight
+  if (waveHidden) {
+    elToggleWave.textContent = 'Waveforms Off';
+    elToggleWave.classList.remove('primary'); // remove highlight when off
+  } else {
+    elToggleWave.textContent = 'Waveforms On';
+    elToggleWave.classList.add('primary');    // highlight when on
+  }
 });
   
 </script>
