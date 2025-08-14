@@ -363,7 +363,7 @@ function stopPlayback(){
   
 function renderTracks(){
   el.tracks.innerHTML = '';
-  tracks.forEach((t) => {
+  tracks.forEach((t, i) => {
     const row = document.createElement('div');
     row.className = 'track';
 
