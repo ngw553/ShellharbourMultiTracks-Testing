@@ -170,6 +170,22 @@ const SONGS = {
     ]
   }
 };
+  
+// Track Colours for the waveforms
+const TRACK_COLORS = [
+  '#4e74ff', // Blue
+  '#ff6b6b', // Red
+  '#51cf66', // Green
+  '#f59f00', // Orange
+  '#9c5eff', // Purple
+  '#00b4d8', // Cyan
+  '#ff9f1c', // Yellow-Orange
+  '#ff61a6', // Pink
+  '#2ec4b6', // Teal
+  '#ff922b', // Amber
+  '#845ef7', // Violet
+  '#ff495c'  // Coral
+];
 
 /* ─────────────────────────────────────────────────────────────────────────────
    AUDIO ENGINE
@@ -414,7 +430,7 @@ function renderTracks(){
       if (window.WaveSurfer) {
         const ws = WaveSurfer.create({
           container: waveWrap,
-          waveColor: '#4e74ff',
+          waveColor: TRACK_COLORS[i % TRACK_COLORS.length],
           progressColor: '#9caeff',
           cursorColor: '#ffffff',
           cursorWidth: 1,
